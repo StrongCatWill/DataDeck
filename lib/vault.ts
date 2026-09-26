@@ -54,6 +54,10 @@ export class Vault {
     return batches;
   }
 
+  has(grantId: string): boolean {
+    return this.grants.has(grantId);
+  }
+
   /** Batches available by nowMs, or null for an unknown grant. */
   listAvailable(grantId: string, nowMs: number): SealedBatch[] | null {
     const entry = this.grants.get(grantId);

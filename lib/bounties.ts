@@ -1,6 +1,6 @@
 // Sample bounties (v2 guide, "Sample bounties") and the full notice shown on the consent sheet.
 // Off-chain only: study topics and card names must never be written on-chain.
-import type { CardName } from "./cards";
+import type { CardName, DayRecord } from "./cards";
 import type { AccessType } from "./types";
 
 export type OrgType = "non_profit_university" | "non_profit" | "commercial";
@@ -16,6 +16,8 @@ export interface Bounty {
   weeksWanted: number;
   /** Only these fields leave the app, pseudonymised. */
   dataShared: string[];
+  /** The sample-data fields behind dataShared. For a single query, the first non-date field is averaged. */
+  fields: (keyof DayRecord)[];
   accessType: AccessType;
   /** How long the researcher can request keys, in plain words. */
   accessWindow: string;
@@ -37,6 +39,7 @@ export const BOUNTIES: Bounty[] = [
     cardWanted: "Deep Sleeper",
     weeksWanted: 4,
     dataShared: ["date", "sleep hours"],
+    fields: ["date", "sleepHours"],
     accessType: "stream30d",
     accessWindow: "30 days, one batch per day",
     retention: "12 months",
@@ -52,6 +55,7 @@ export const BOUNTIES: Bounty[] = [
     cardWanted: "Calm Heart",
     weeksWanted: 2,
     dataShared: ["date", "resting heart rate"],
+    fields: ["date", "restingHr"],
     accessType: "snapshot24h",
     accessWindow: "24 hours, one package",
     retention: "6 months",
@@ -67,6 +71,7 @@ export const BOUNTIES: Bounty[] = [
     cardWanted: "Marathon Week",
     weeksWanted: 1,
     dataShared: ["one aggregate figure (average steps); no daily rows"],
+    fields: ["steps"],
     accessType: "singleQuery",
     accessWindow: "one answer, then access ends",
     retention: "none (aggregate only)",

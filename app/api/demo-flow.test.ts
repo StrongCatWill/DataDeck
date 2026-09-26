@@ -61,6 +61,16 @@ describe("key API with the mock grant service", () => {
     expect(await (await keyFor(grantId, "0")).json()).toEqual({ error: "access_refused", reason: "expired" });
   });
 
+  it("single query: releases one aggregate key once, then nothing more", async () => {
+    const grantId = await newGrant({ bountyId: "active-ireland" });
+    const res = await getBatches(req(), params({ grantId }));
+    const { batches } = (await res.json()) as { batches: SealedBatch[] };
+
+    const { key } = await (await keyFor(grantId, "0")).json();
+    expect(JSON.parse(decrypt(batches[0], key))).toEqual({ metric: "mean steps", value: 15157.1, days: 7 });
+    expect((await keyFor(grantId, "0")).status).toBe(404);
+  });
+
   it("returns 403 for an unknown grant and 400 for a bad batch number", async () => {
     expect((await keyFor("unknown", "0")).status).toBe(403);
     expect((await keyFor("unknown", "-1")).status).toBe(400);

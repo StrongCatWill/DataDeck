@@ -22,5 +22,7 @@ export async function GET(_request: Request, { params }: Params) {
 
   const key = getVault().getKey(grantId, batchNo, nowMs);
   if (!key) return Response.json({ error: "batch_not_available" }, { status: 404 });
+  // A single query releases its one key once; marking the grant Consumed on-chain is consume_grant (Solana side).
+  if (grant!.accessType === "singleQuery") getVault().destroyKeys(grantId);
   return Response.json({ grantId, batch: batchNo, key });
 }
