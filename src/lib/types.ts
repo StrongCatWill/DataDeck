@@ -45,6 +45,9 @@ export type OrgType = "non_profit_university" | "non_profit" | "commercial";
 
 export type AccessType = "snapshot_24h" | "stream_30d" | "single_query";
 
+/** Rule-based risk label per request (src/lib/risk.ts). */
+export type RiskLevel = "Low" | "Medium" | "High";
+
 export interface Bounty {
   id: string;
   researcher: string;
@@ -117,6 +120,8 @@ export interface Ruleset {
     dataForm: "pseudonymised";
     minPricePerDayUsdc: number;
     maxAccess: AccessType;
+    /** Player's risk tolerance: requests labelled above it are never auto-accepted. */
+    maxRisk?: RiskLevel;
   };
   expiresAt: string; // ISO date, at most 90 days out
   notify: "after_each_accept";
