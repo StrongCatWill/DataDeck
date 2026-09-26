@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "keys": "node scripts/make-keys.mjs"
+    "keys": "node scripts/make-keys.mjs",
+    "demo:flow": "node scripts/demo-flow.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
