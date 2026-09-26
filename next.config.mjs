@@ -3,9 +3,12 @@ const nextConfig = {
   reactStrictMode: true,
   // API routes read data/sample.csv at runtime; ship it with the serverless functions.
   outputFileTracingIncludes: { "/api/**": ["./data/**"] },
-  // The mobile app (public/app, from the design prototype) opens at /app.
+  // The design prototypes (public/app, public/deck) open at /app and /deck.
   async rewrites() {
-    return [{ source: "/app", destination: "/app/index.html" }];
+    return [
+      { source: "/app", destination: "/app/index.html" },
+      { source: "/deck", destination: "/deck/index.html" },
+    ];
   },
 };
 
