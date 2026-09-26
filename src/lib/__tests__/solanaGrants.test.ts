@@ -8,7 +8,9 @@ import {
   encodeCreateGrant,
   formatGrantMemo,
   formatRevokeMemo,
+  formatRulesMemo,
   parseMemo,
+  RULES_OFF_MEMO,
   parseRpcMemoField,
 } from "../solana/codec";
 import { createGrantIx, grantPda } from "../solana/grantTx";
@@ -32,6 +34,7 @@ describe("Anchor codec", () => {
     expect(DISC.revokeGrant).toEqual(disc("global:revoke_grant"));
     expect(DISC.consumeGrant).toEqual(disc("global:consume_grant"));
     expect(DISC.disableDelegate).toEqual(disc("global:disable_delegate"));
+    expect(DISC.setRuleDelegate).toEqual(disc("global:set_rule_delegate"));
     expect(DISC.grantAccount).toEqual(disc("account:Grant"));
   });
 
@@ -103,28 +106,70 @@ describe("Memo fallback", () => {
   });
 
   const sig = (signature: string, memoText: string, blockTime: number): ConfirmedSignatureInfo =>
-    ({ signature, memo: `[${memoText.length}] ${memoText}`, blockTime, err: null, slot: 0 }) as ConfirmedSignatureInfo;
+    ({ signature, memo: `[${memoText.length}] ${memoText}`, blockTime, err: null, slot: blockTime }) as ConfirmedSignatureInfo;
 
-  // Fake RPC: says which signatures the player signed.
-  const fakeConn = (signedByPlayer: string[]) =>
+  // Fake RPC: which key signed each signature.
+  const fakeConn = (signers: Record<string, PublicKey>) =>
     ({
       getParsedTransaction: async (s: string) => ({
-        transaction: { message: { accountKeys: [{ signer: true, pubkey: signedByPlayer.includes(s) ? player : researcher }] } },
+        transaction: { message: { accountKeys: [{ signer: true, pubkey: signers[s] ?? researcher }] } },
       }),
     }) as unknown as Connection;
+  const P = player.toBase58();
 
   it("latest player-signed memo wins: grant then revoke is Revoked", async () => {
-    const sigs = [sig("s2", formatRevokeMemo(grantId), 200), sig("s1", formatGrantMemo(memo), 100)]; // newest first
-    const [g] = await grantsFromMemos(fakeConn(["s1", "s2"]), player.toBase58(), sigs);
-    expect(g).toMatchObject({ grantId, status: "Revoked", createdAt: 100, revokedAt: 200, pricePerDay: 500_000 });
+    const playerSigs = [sig("s2", formatRevokeMemo(grantId), 200), sig("s1", formatGrantMemo(memo), 100)]; // newest first
+    const [g] = await grantsFromMemos(fakeConn({ s1: player, s2: player }), P, { playerSigs });
+    expect(g).toMatchObject({ grantId, status: "Revoked", createdAt: 100, revokedAt: 200, pricePerDay: 500_000, auto: false });
   });
 
   it("ignores memos the player did not sign", async () => {
     const forged = [sig("s1", formatGrantMemo(memo), 100)];
-    expect(await grantsFromMemos(fakeConn([]), player.toBase58(), forged)).toEqual([]);
+    expect(await grantsFromMemos(fakeConn({}), P, { playerSigs: forged })).toEqual([]);
 
-    const sigs = [sig("s2", formatRevokeMemo(grantId), 200), sig("s1", formatGrantMemo(memo), 100)];
-    const [g] = await grantsFromMemos(fakeConn(["s1"]), player.toBase58(), sigs);
+    const playerSigs = [sig("s2", formatRevokeMemo(grantId), 200), sig("s1", formatGrantMemo(memo), 100)];
+    const [g] = await grantsFromMemos(fakeConn({ s1: player }), P, { playerSigs });
     expect(g.status).toBe("Active");
+  });
+
+  describe("auto-accept via the rule delegate", () => {
+    const delegate = Keypair.generate().publicKey;
+    const ruleHash = "cd".repeat(32);
+    const auto = formatGrantMemo({ ...memo, player: P, ruleHash });
+    const rules = formatRulesMemo({ delegate: delegate.toBase58(), ruleHash, expiresAt: 10_000 });
+    const src = (playerSigs: ConfirmedSignatureInfo[], signers: Record<string, PublicKey>) => ({
+      conn: fakeConn({ d1: delegate, ...signers }),
+      sources: { playerSigs, delegate: delegate.toBase58(), delegateSigs: [sig("d1", auto, 300)] },
+    });
+
+    it("counts a delegate grant while the player's rule is in force", async () => {
+      const { conn, sources } = src([sig("r1", rules, 100)], { r1: player });
+      const [g] = await grantsFromMemos(conn, P, sources);
+      expect(g).toMatchObject({ grantId, status: "Active", auto: true, ruleHash, player: P });
+    });
+
+    it("rejects it without a rule, with a different rule hash, or after dd:rules-off", async () => {
+      const none = src([], {});
+      expect(await grantsFromMemos(none.conn, P, none.sources)).toEqual([]);
+
+      const otherRule = formatRulesMemo({ delegate: delegate.toBase58(), ruleHash: "ef".repeat(32), expiresAt: 10_000 });
+      const wrong = src([sig("r1", otherRule, 100)], { r1: player });
+      expect(await grantsFromMemos(wrong.conn, P, wrong.sources)).toEqual([]);
+
+      const off = src([sig("r2", RULES_OFF_MEMO, 200), sig("r1", rules, 100)], { r1: player, r2: player });
+      expect(await grantsFromMemos(off.conn, P, off.sources)).toEqual([]);
+    });
+
+    it("rejects a delegate memo not signed by the delegate", async () => {
+      const { sources } = src([sig("r1", rules, 100)], { r1: player });
+      const conn = fakeConn({ r1: player, d1: researcher });
+      expect(await grantsFromMemos(conn, P, sources)).toEqual([]);
+    });
+
+    it("the player's revoke still stops an auto grant", async () => {
+      const { conn, sources } = src([sig("x", formatRevokeMemo(grantId), 400), sig("r1", rules, 100)], { r1: player, x: player });
+      const [g] = await grantsFromMemos(conn, P, sources);
+      expect(g.status).toBe("Revoked");
+    });
   });
 });

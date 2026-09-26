@@ -1,12 +1,22 @@
 import { PublicKey, Transaction, type Connection } from "@solana/web3.js";
-import type { AccessType, Bounty } from "../types";
+import type { AccessType, Bounty, Ruleset } from "../types";
 import { DEMO_DAY_SECONDS } from "../types";
 import { bytesToHex } from "./codec";
-import { createGrantIx, grantMemoIx, killSwitchTx, memoKillSwitchTx, newGrantId, ruleDelegatePda } from "./grantTx";
+import {
+  createGrantIx,
+  grantMemoIx,
+  killSwitchTx,
+  memoKillSwitchTx,
+  newGrantId,
+  ruleDelegatePda,
+  rulesMemoIx,
+  setRuleDelegateIx,
+} from "./grantTx";
 
 // Browser helpers for the dashboard: one call per player action, whatever GRANT_BACKEND is.
 //   lendCard     - Confirm on the consent sheet: wallet signs create_grant (or the dd:grant memo), server records it.
-//   stopSharing  - kill switch: wallet signs revoke_grant x N + disable_delegate (or dd:revoke memos) in one tx.
+//   stopSharing  - kill switch: wallet signs revoke_grant x N + disable_delegate (or dd:revoke + dd:rules-off memos) in one tx.
+//   enableAutoAccept - wallet registers the server's rule delegate for one ruleset (set_rule_delegate or dd:rules memo).
 // In mock mode they call the API directly, as the dashboard does today.
 
 export type GrantMode = "mock" | "anchor" | "memo";
@@ -39,10 +49,12 @@ function memoExpiresAt(accessType: AccessType, now: number): number {
 }
 
 /** Salted sha256 of the bounty id, so the chain cannot be matched against the public bounty list (risk 3). */
+const sha256Hex = async (text: string) =>
+  bytesToHex(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text))));
+
 async function saltedBountyHash(bountyId: string): Promise<string> {
   const salt = bytesToHex(crypto.getRandomValues(new Uint8Array(16)));
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(salt + bountyId));
-  return bytesToHex(new Uint8Array(digest));
+  return sha256Hex(salt + bountyId);
 }
 
 function researcherFor(bounty: Bounty): PublicKey {
@@ -120,4 +132,26 @@ export async function stopSharing(activeGrantIds: string[], deps: Deps): Promise
   const sig = await sendAndConfirm(tx, deps);
   const res = await post(fetchFn, "/api/revoke", { player: publicKey.toBase58(), tx: sig, grantIds: activeGrantIds });
   return { tx: sig, response: await res.json() };
+}
+
+/**
+ * Lets the server's rule delegate open grants for this player under one ruleset, until the ruleset expires.
+ * The rule hash matches the server's sha256(JSON.stringify(rule)), so each auto grant proves which rule created it.
+ */
+export async function enableAutoAccept(rule: Ruleset, deps: Deps): Promise<{ tx?: string; ruleHash: string }> {
+  const mode = deps.mode ?? clientGrantMode();
+  const ruleHash = await sha256Hex(JSON.stringify(rule));
+  if (mode === "mock") return { ruleHash };
+
+  const { publicKey } = deps.wallet;
+  if (!publicKey) throw new Error("Connect a wallet first");
+  const delegateKey = process.env.NEXT_PUBLIC_RULE_DELEGATE_PUBKEY;
+  if (!delegateKey) throw new Error("NEXT_PUBLIC_RULE_DELEGATE_PUBKEY is not set");
+  const delegate = new PublicKey(delegateKey);
+  const expiresAt = Math.floor(new Date(rule.expiresAt).getTime() / 1000);
+  const ix =
+    mode === "anchor"
+      ? setRuleDelegateIx(publicKey, delegate, ruleHash, expiresAt)
+      : rulesMemoIx(publicKey, { delegate: delegate.toBase58(), ruleHash, expiresAt });
+  return { tx: await sendAndConfirm(new Transaction().add(ix), deps), ruleHash };
 }

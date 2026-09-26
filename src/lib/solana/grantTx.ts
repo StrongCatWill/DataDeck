@@ -1,7 +1,18 @@
 import { Buffer } from "buffer";
 import { PublicKey, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
 import type { AccessType } from "../types";
-import { DISC, encodeCreateGrant, formatGrantMemo, formatRevokeMemo, hexToBytes, type GrantMemo } from "./codec";
+import {
+  DISC,
+  RULES_OFF_MEMO,
+  encodeCreateGrant,
+  encodeSetRuleDelegate,
+  formatGrantMemo,
+  formatRevokeMemo,
+  formatRulesMemo,
+  hexToBytes,
+  type GrantMemo,
+  type RulesMemo,
+} from "./codec";
 
 // Transaction builders for data_deck_grants and the Memo fallback. Browser-safe: the player's wallet
 // signs manual grants and the kill switch, so the frontend calls these; the server only uses them for
@@ -82,6 +93,19 @@ export function disableDelegateIx(player: PublicKey, programId = grantProgramId(
   });
 }
 
+/** Registers (or replaces) the auto-accept delegate for this player; the player signs. */
+export function setRuleDelegateIx(player: PublicKey, delegate: PublicKey, ruleHashHex: string, expiresAt: number, programId = grantProgramId()) {
+  return new TransactionInstruction({
+    programId,
+    keys: [
+      { pubkey: player, isSigner: true, isWritable: true },
+      { pubkey: ruleDelegatePda(player, programId), isSigner: false, isWritable: true },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+    data: Buffer.from(encodeSetRuleDelegate(delegate.toBytes(), ruleHashHex, expiresAt)),
+  });
+}
+
 export function consumeGrantIx(researcher: PublicKey, player: PublicKey, grantIdHex: string, programId = grantProgramId()) {
   return new TransactionInstruction({
     programId,
@@ -115,9 +139,12 @@ const memoIx = (signer: PublicKey, text: string) =>
 
 export const grantMemoIx = (player: PublicKey, m: Omit<GrantMemo, "kind">) => memoIx(player, formatGrantMemo(m));
 
-/** Memo kill switch: one tx with a dd:revoke memo per grant. */
+export const rulesMemoIx = (player: PublicKey, m: Omit<RulesMemo, "kind">) => memoIx(player, formatRulesMemo(m));
+
+/** Memo kill switch: one tx with a dd:revoke memo per grant plus dd:rules-off for the delegate. */
 export function memoKillSwitchTx(player: PublicKey, activeGrantIds: string[]): Transaction {
   const tx = new Transaction();
   for (const id of activeGrantIds) tx.add(memoIx(player, formatRevokeMemo(id)));
+  tx.add(memoIx(player, RULES_OFF_MEMO));
   return tx;
 }

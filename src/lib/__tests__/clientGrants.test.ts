@@ -1,17 +1,21 @@
 import { Keypair, type Connection, type Transaction } from "@solana/web3.js";
 import { beforeAll, describe, expect, it } from "vitest";
 import { getBounty } from "../bounties";
-import { lendCard, stopSharing, type WalletLike } from "../solana/clientGrants";
+import { enableAutoAccept, lendCard, stopSharing, type WalletLike } from "../solana/clientGrants";
+import { DEMO_RULE } from "../rules";
+import { sha256Hex } from "../hash";
 import { parseMemo } from "../solana/codec";
 import { MEMO_PROGRAM_ID } from "../solana/grantTx";
 
 const player = Keypair.generate().publicKey;
 const researcher = Keypair.generate().publicKey.toBase58();
+const delegate = Keypair.generate().publicKey.toBase58();
 const bounty = getBounty("b-trinity-sleep")!;
 
 beforeAll(() => {
   process.env.NEXT_PUBLIC_GRANT_PROGRAM_ID = Keypair.generate().publicKey.toBase58();
   process.env.NEXT_PUBLIC_DEMO_RESEARCHER_PUBKEY = researcher;
+  process.env.NEXT_PUBLIC_RULE_DELEGATE_PUBKEY = delegate;
 });
 
 function harness(statuses: number[] = [201]) {
@@ -84,7 +88,10 @@ describe("stopSharing", () => {
     const { tx } = await stopSharing(ids, { ...h.deps, mode: "memo" });
 
     expect(h.sent).toHaveLength(1);
-    expect(h.sent[0].instructions.map((_, i) => memoText(h.sent[0], i))).toEqual(ids.map((id) => `dd:revoke id=${id}`));
+    expect(h.sent[0].instructions.map((_, i) => memoText(h.sent[0], i))).toEqual([
+      ...ids.map((id) => `dd:revoke id=${id}`),
+      "dd:rules-off",
+    ]);
     expect(h.posts[0]).toEqual({ url: "/api/revoke", body: { player: player.toBase58(), tx, grantIds: ids } });
   });
 
@@ -92,5 +99,19 @@ describe("stopSharing", () => {
     const h = harness();
     await stopSharing(["7f3a00112233445566778899aabbccdd"], { ...h.deps, mode: "anchor" });
     expect(h.sent[0].instructions).toHaveLength(1);
+  });
+});
+
+describe("enableAutoAccept", () => {
+  it("memo mode: player signs dd:rules with the server's rule hash", async () => {
+    const h = harness();
+    const { ruleHash } = await enableAutoAccept(DEMO_RULE, { ...h.deps, mode: "memo" });
+    expect(ruleHash).toBe(sha256Hex(JSON.stringify(DEMO_RULE))); // same hash the server stores on auto grants
+    expect(parseMemo(memoText(h.sent[0]))).toEqual({
+      kind: "rules",
+      delegate,
+      ruleHash,
+      expiresAt: Math.floor(new Date(DEMO_RULE.expiresAt).getTime() / 1000),
+    });
   });
 });
