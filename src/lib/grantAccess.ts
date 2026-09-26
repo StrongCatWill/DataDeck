@@ -1,15 +1,15 @@
 import { effectiveStatus } from "./grants";
-import type { GrantStatus, GrantView } from "./types";
+import type { GrantStatus, OnChainGrant } from "./types";
 
 // Grant validation seam for the key API. The only thing the key API needs from a grant backend is a
 // read; the mock, Anchor and Memo backends all satisfy GrantReader, so swapping one for another
 // never touches the key API.
 export interface GrantReader {
-  readGrant(grantId: string): Promise<GrantView | null>;
+  readGrant(grantId: string): Promise<OnChainGrant | null>;
 }
 
 export type AccessDecision =
-  | { ok: true; grant: GrantView }
+  | { ok: true; grant: OnChainGrant }
   | { ok: false; reason: "unknown" | Exclude<GrantStatus, "Active"> };
 
 /** May a key for this grant be released right now? Active and unexpired only (FR-5). */

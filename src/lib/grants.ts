@@ -1,12 +1,14 @@
 import { getBounty } from "./bounties";
 import { randomGrantId, saltedHash, sha256Hex } from "./hash";
+import { anchorBackend } from "./solana/anchorGrants";
+import { memoBackend } from "./solana/memoGrants";
 import type { AccessType, ErasureRequest, GrantStatus, GrantView, OnChainGrant, Ruleset } from "./types";
 import { DEMO_DAY_SECONDS } from "./types";
 
 // Grant backend. GRANT_BACKEND selects the implementation:
 //   mock   - in-memory, lets roles B and C build before 12:30 (default)
-//   anchor - reads/writes the data_deck_grants program on devnet (role A, TODO)
-//   memo   - 12:30 fallback: dd:grant / dd:revoke memos (role A, TODO)
+//   anchor - reads/writes the data_deck_grants program on devnet (solana/anchorGrants.ts)
+//   memo   - 12:30 fallback: dd:grant / dd:revoke memos (solana/memoGrants.ts)
 
 export interface CreateGrantInput {
   player: string;
@@ -101,9 +103,7 @@ const mockBackend: GrantBackend = {
 
 export function grantBackend(): GrantBackend {
   const mode = process.env.GRANT_BACKEND ?? "mock";
-  if (mode !== "mock") {
-    // TODO(role A): return anchorBackend / memoBackend.
-    console.warn(`GRANT_BACKEND=${mode} not implemented yet; using mock`);
-  }
+  if (mode === "anchor") return anchorBackend;
+  if (mode === "memo") return memoBackend;
   return mockBackend;
 }
