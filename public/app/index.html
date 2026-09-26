@@ -1,0 +1,1935 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<title>Data Deck clickable prototype</title>
+<script src="/app/dc-runtime.js"></script>
+<style>/* Data Deck tokens, written from the design system's tokens.json */
+:root {
+  --paper: #F2F3F7; --surface: #FFFFFF; --surface-sunk: #E6E8F0;
+  --ink: #0E0F1A; --ink-muted: #4A4E63; --line: #0E0F1A;
+  --cobalt: #2B3BFF; --on-cobalt: #FFFFFF;
+  --tangerine: #FF5A1F; --sun: #FFC21A; --mint: #12B87A;
+  --violet: #8A2BE2; --slate: #7A8099;
+  --danger: #D9142B; --on-danger: #FFFFFF;
+  --rarity-common: var(--slate); --rarity-rare: var(--cobalt);
+  --rarity-epic: var(--violet); --rarity-legendary: var(--sun);
+
+  --font-display: Unbounded, "Arial Black", system-ui, sans-serif;
+  --font-sans: Onest, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+
+  --radius-0: 0px; --radius-sm: 2px; --radius-md: 4px; --radius-lg: 6px;
+
+  --shadow-hard: 4px 4px 0 #0E0F1A;
+  --shadow-hard-lg: 6px 6px 0 #0E0F1A;
+  --shadow-pressed: 1px 1px 0 #0E0F1A;
+
+  --border-w: 2px; --border-w-thick: 3px;
+
+  --dur-fast: 120ms; --dur-base: 220ms; --dur-slow: 420ms; --dur-hold: 1200ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in: cubic-bezier(0.6, 0, 0.8, 0.2);
+  --ease-snap: cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+[data-theme="dark"] {
+  --paper: #0E0F1A; --surface: #181A2B; --surface-sunk: #23263D;
+  --ink: #F2F3F7; --ink-muted: #A9ADC4; --line: #3A3E5C;
+  --cobalt: #6B78FF; --on-cobalt: #0E0F1A;
+  --tangerine: #FF7A45; --sun: #FFC933; --mint: #2EE59D;
+  --violet: #B46BFF; --slate: #8A90A8;
+  --danger: #FF4757; --on-danger: #0E0F1A;
+  --shadow-hard: 4px 4px 0 #3A3E5C;
+  --shadow-hard-lg: 6px 6px 0 #3A3E5C;
+  --shadow-pressed: 1px 1px 0 #3A3E5C;
+}
+</style>
+<style>/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/app/fonts/b3a1b777.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/app/fonts/28f745fd.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/app/fonts/39917771.woff2") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/app/fonts/aae8750a.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/app/fonts/5493a6d9.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/app/fonts/136fd36c.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/b3a1b777.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/28f745fd.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/39917771.woff2") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/aae8750a.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/5493a6d9.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/136fd36c.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/b3a1b777.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/28f745fd.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/39917771.woff2") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/aae8750a.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/5493a6d9.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/136fd36c.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/app/fonts/bc4ce82f.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/app/fonts/5a32dcfa.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* math */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/app/fonts/de4e9065.woff2") format('woff2');
+  unicode-range: U+0302-0303, U+0305, U+0307-0308, U+0310, U+0312, U+0315, U+031A, U+0326-0327, U+032C, U+032F-0330, U+0332-0333, U+0338, U+033A, U+0346, U+034D, U+0391-03A1, U+03A3-03A9, U+03B1-03C9, U+03D1, U+03D5-03D6, U+03F0-03F1, U+03F4-03F5, U+2016-2017, U+2034-2038, U+203C, U+2040, U+2043, U+2047, U+2050, U+2057, U+205F, U+2070-2071, U+2074-208E, U+2090-209C, U+20D0-20DC, U+20E1, U+20E5-20EF, U+2100-2112, U+2114-2115, U+2117-2121, U+2123-214F, U+2190, U+2192, U+2194-21AE, U+21B0-21E5, U+21F1-21F2, U+21F4-2211, U+2213-2214, U+2216-22FF, U+2308-230B, U+2310, U+2319, U+231C-2321, U+2336-237A, U+237C, U+2395, U+239B-23B7, U+23D0, U+23DC-23E1, U+2474-2475, U+25AF, U+25B3, U+25B7, U+25BD, U+25C1, U+25CA, U+25CC, U+25FB, U+266D-266F, U+27C0-27FF, U+2900-2AFF, U+2B0E-2B11, U+2B30-2B4C, U+2BFE, U+3030, U+FF5B, U+FF5D, U+1D400-1D7FF, U+1EE00-1EEFF;
+}
+/* symbols */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/app/fonts/4f664fed.woff2") format('woff2');
+  unicode-range: U+0001-000C, U+000E-001F, U+007F-009F, U+20DD-20E0, U+20E2-20E4, U+2150-218F, U+2190, U+2192, U+2194-2199, U+21AF, U+21E6-21F0, U+21F3, U+2218-2219, U+2299, U+22C4-22C6, U+2300-243F, U+2440-244A, U+2460-24FF, U+25A0-27BF, U+2800-28FF, U+2921-2922, U+2981, U+29BF, U+29EB, U+2B00-2BFF, U+4DC0-4DFF, U+FFF9-FFFB, U+10140-1018E, U+10190-1019C, U+101A0, U+101D0-101FD, U+102E0-102FB, U+10E60-10E7E, U+1D2C0-1D2D3, U+1D2E0-1D37F, U+1F000-1F0FF, U+1F100-1F1AD, U+1F1E6-1F1FF, U+1F30D-1F30F, U+1F315, U+1F31C, U+1F31E, U+1F320-1F32C, U+1F336, U+1F378, U+1F37D, U+1F382, U+1F393-1F39F, U+1F3A7-1F3A8, U+1F3AC-1F3AF, U+1F3C2, U+1F3C4-1F3C6, U+1F3CA-1F3CE, U+1F3D4-1F3E0, U+1F3ED, U+1F3F1-1F3F3, U+1F3F5-1F3F7, U+1F408, U+1F415, U+1F41F, U+1F426, U+1F43F, U+1F441-1F442, U+1F444, U+1F446-1F449, U+1F44C-1F44E, U+1F453, U+1F46A, U+1F47D, U+1F4A3, U+1F4B0, U+1F4B3, U+1F4B9, U+1F4BB, U+1F4BF, U+1F4C8-1F4CB, U+1F4D6, U+1F4DA, U+1F4DF, U+1F4E3-1F4E6, U+1F4EA-1F4ED, U+1F4F7, U+1F4F9-1F4FB, U+1F4FD-1F4FE, U+1F503, U+1F507-1F50B, U+1F50D, U+1F512-1F513, U+1F53E-1F54A, U+1F54F-1F5FA, U+1F610, U+1F650-1F67F, U+1F687, U+1F68D, U+1F691, U+1F694, U+1F698, U+1F6AD, U+1F6B2, U+1F6B9-1F6BA, U+1F6BC, U+1F6C6-1F6CF, U+1F6D3-1F6D7, U+1F6E0-1F6EA, U+1F6F0-1F6F3, U+1F6F7-1F6FC, U+1F700-1F7FF, U+1F800-1F80B, U+1F810-1F847, U+1F850-1F859, U+1F860-1F887, U+1F890-1F8AD, U+1F8B0-1F8BB, U+1F8C0-1F8C1, U+1F900-1F90B, U+1F93B, U+1F946, U+1F984, U+1F996, U+1F9E9, U+1FA00-1FA6F, U+1FA70-1FA7C, U+1FA80-1FA89, U+1FA8F-1FAC6, U+1FACE-1FADC, U+1FADF-1FAE9, U+1FAF0-1FAF8, U+1FB00-1FBFF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/app/fonts/7a62f793.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/app/fonts/14ca0eb2.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/app/fonts/ea500994.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/app/fonts/bc4ce82f.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/app/fonts/5a32dcfa.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* math */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/app/fonts/de4e9065.woff2") format('woff2');
+  unicode-range: U+0302-0303, U+0305, U+0307-0308, U+0310, U+0312, U+0315, U+031A, U+0326-0327, U+032C, U+032F-0330, U+0332-0333, U+0338, U+033A, U+0346, U+034D, U+0391-03A1, U+03A3-03A9, U+03B1-03C9, U+03D1, U+03D5-03D6, U+03F0-03F1, U+03F4-03F5, U+2016-2017, U+2034-2038, U+203C, U+2040, U+2043, U+2047, U+2050, U+2057, U+205F, U+2070-2071, U+2074-208E, U+2090-209C, U+20D0-20DC, U+20E1, U+20E5-20EF, U+2100-2112, U+2114-2115, U+2117-2121, U+2123-214F, U+2190, U+2192, U+2194-21AE, U+21B0-21E5, U+21F1-21F2, U+21F4-2211, U+2213-2214, U+2216-22FF, U+2308-230B, U+2310, U+2319, U+231C-2321, U+2336-237A, U+237C, U+2395, U+239B-23B7, U+23D0, U+23DC-23E1, U+2474-2475, U+25AF, U+25B3, U+25B7, U+25BD, U+25C1, U+25CA, U+25CC, U+25FB, U+266D-266F, U+27C0-27FF, U+2900-2AFF, U+2B0E-2B11, U+2B30-2B4C, U+2BFE, U+3030, U+FF5B, U+FF5D, U+1D400-1D7FF, U+1EE00-1EEFF;
+}
+/* symbols */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/app/fonts/4f664fed.woff2") format('woff2');
+  unicode-range: U+0001-000C, U+000E-001F, U+007F-009F, U+20DD-20E0, U+20E2-20E4, U+2150-218F, U+2190, U+2192, U+2194-2199, U+21AF, U+21E6-21F0, U+21F3, U+2218-2219, U+2299, U+22C4-22C6, U+2300-243F, U+2440-244A, U+2460-24FF, U+25A0-27BF, U+2800-28FF, U+2921-2922, U+2981, U+29BF, U+29EB, U+2B00-2BFF, U+4DC0-4DFF, U+FFF9-FFFB, U+10140-1018E, U+10190-1019C, U+101A0, U+101D0-101FD, U+102E0-102FB, U+10E60-10E7E, U+1D2C0-1D2D3, U+1D2E0-1D37F, U+1F000-1F0FF, U+1F100-1F1AD, U+1F1E6-1F1FF, U+1F30D-1F30F, U+1F315, U+1F31C, U+1F31E, U+1F320-1F32C, U+1F336, U+1F378, U+1F37D, U+1F382, U+1F393-1F39F, U+1F3A7-1F3A8, U+1F3AC-1F3AF, U+1F3C2, U+1F3C4-1F3C6, U+1F3CA-1F3CE, U+1F3D4-1F3E0, U+1F3ED, U+1F3F1-1F3F3, U+1F3F5-1F3F7, U+1F408, U+1F415, U+1F41F, U+1F426, U+1F43F, U+1F441-1F442, U+1F444, U+1F446-1F449, U+1F44C-1F44E, U+1F453, U+1F46A, U+1F47D, U+1F4A3, U+1F4B0, U+1F4B3, U+1F4B9, U+1F4BB, U+1F4BF, U+1F4C8-1F4CB, U+1F4D6, U+1F4DA, U+1F4DF, U+1F4E3-1F4E6, U+1F4EA-1F4ED, U+1F4F7, U+1F4F9-1F4FB, U+1F4FD-1F4FE, U+1F503, U+1F507-1F50B, U+1F50D, U+1F512-1F513, U+1F53E-1F54A, U+1F54F-1F5FA, U+1F610, U+1F650-1F67F, U+1F687, U+1F68D, U+1F691, U+1F694, U+1F698, U+1F6AD, U+1F6B2, U+1F6B9-1F6BA, U+1F6BC, U+1F6C6-1F6CF, U+1F6D3-1F6D7, U+1F6E0-1F6EA, U+1F6F0-1F6F3, U+1F6F7-1F6FC, U+1F700-1F7FF, U+1F800-1F80B, U+1F810-1F847, U+1F850-1F859, U+1F860-1F887, U+1F890-1F8AD, U+1F8B0-1F8BB, U+1F8C0-1F8C1, U+1F900-1F90B, U+1F93B, U+1F946, U+1F984, U+1F996, U+1F9E9, U+1FA00-1FA6F, U+1FA70-1FA7C, U+1FA80-1FA89, U+1FA8F-1FAC6, U+1FACE-1FADC, U+1FADF-1FAE9, U+1FAF0-1FAF8, U+1FB00-1FBFF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/app/fonts/7a62f793.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/app/fonts/14ca0eb2.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/app/fonts/ea500994.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/bc4ce82f.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/5a32dcfa.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* math */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/de4e9065.woff2") format('woff2');
+  unicode-range: U+0302-0303, U+0305, U+0307-0308, U+0310, U+0312, U+0315, U+031A, U+0326-0327, U+032C, U+032F-0330, U+0332-0333, U+0338, U+033A, U+0346, U+034D, U+0391-03A1, U+03A3-03A9, U+03B1-03C9, U+03D1, U+03D5-03D6, U+03F0-03F1, U+03F4-03F5, U+2016-2017, U+2034-2038, U+203C, U+2040, U+2043, U+2047, U+2050, U+2057, U+205F, U+2070-2071, U+2074-208E, U+2090-209C, U+20D0-20DC, U+20E1, U+20E5-20EF, U+2100-2112, U+2114-2115, U+2117-2121, U+2123-214F, U+2190, U+2192, U+2194-21AE, U+21B0-21E5, U+21F1-21F2, U+21F4-2211, U+2213-2214, U+2216-22FF, U+2308-230B, U+2310, U+2319, U+231C-2321, U+2336-237A, U+237C, U+2395, U+239B-23B7, U+23D0, U+23DC-23E1, U+2474-2475, U+25AF, U+25B3, U+25B7, U+25BD, U+25C1, U+25CA, U+25CC, U+25FB, U+266D-266F, U+27C0-27FF, U+2900-2AFF, U+2B0E-2B11, U+2B30-2B4C, U+2BFE, U+3030, U+FF5B, U+FF5D, U+1D400-1D7FF, U+1EE00-1EEFF;
+}
+/* symbols */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/4f664fed.woff2") format('woff2');
+  unicode-range: U+0001-000C, U+000E-001F, U+007F-009F, U+20DD-20E0, U+20E2-20E4, U+2150-218F, U+2190, U+2192, U+2194-2199, U+21AF, U+21E6-21F0, U+21F3, U+2218-2219, U+2299, U+22C4-22C6, U+2300-243F, U+2440-244A, U+2460-24FF, U+25A0-27BF, U+2800-28FF, U+2921-2922, U+2981, U+29BF, U+29EB, U+2B00-2BFF, U+4DC0-4DFF, U+FFF9-FFFB, U+10140-1018E, U+10190-1019C, U+101A0, U+101D0-101FD, U+102E0-102FB, U+10E60-10E7E, U+1D2C0-1D2D3, U+1D2E0-1D37F, U+1F000-1F0FF, U+1F100-1F1AD, U+1F1E6-1F1FF, U+1F30D-1F30F, U+1F315, U+1F31C, U+1F31E, U+1F320-1F32C, U+1F336, U+1F378, U+1F37D, U+1F382, U+1F393-1F39F, U+1F3A7-1F3A8, U+1F3AC-1F3AF, U+1F3C2, U+1F3C4-1F3C6, U+1F3CA-1F3CE, U+1F3D4-1F3E0, U+1F3ED, U+1F3F1-1F3F3, U+1F3F5-1F3F7, U+1F408, U+1F415, U+1F41F, U+1F426, U+1F43F, U+1F441-1F442, U+1F444, U+1F446-1F449, U+1F44C-1F44E, U+1F453, U+1F46A, U+1F47D, U+1F4A3, U+1F4B0, U+1F4B3, U+1F4B9, U+1F4BB, U+1F4BF, U+1F4C8-1F4CB, U+1F4D6, U+1F4DA, U+1F4DF, U+1F4E3-1F4E6, U+1F4EA-1F4ED, U+1F4F7, U+1F4F9-1F4FB, U+1F4FD-1F4FE, U+1F503, U+1F507-1F50B, U+1F50D, U+1F512-1F513, U+1F53E-1F54A, U+1F54F-1F5FA, U+1F610, U+1F650-1F67F, U+1F687, U+1F68D, U+1F691, U+1F694, U+1F698, U+1F6AD, U+1F6B2, U+1F6B9-1F6BA, U+1F6BC, U+1F6C6-1F6CF, U+1F6D3-1F6D7, U+1F6E0-1F6EA, U+1F6F0-1F6F3, U+1F6F7-1F6FC, U+1F700-1F7FF, U+1F800-1F80B, U+1F810-1F847, U+1F850-1F859, U+1F860-1F887, U+1F890-1F8AD, U+1F8B0-1F8BB, U+1F8C0-1F8C1, U+1F900-1F90B, U+1F93B, U+1F946, U+1F984, U+1F996, U+1F9E9, U+1FA00-1FA6F, U+1FA70-1FA7C, U+1FA80-1FA89, U+1FA8F-1FAC6, U+1FACE-1FADC, U+1FADF-1FAE9, U+1FAF0-1FAF8, U+1FB00-1FBFF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/7a62f793.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/14ca0eb2.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/ea500994.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/bc4ce82f.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/5a32dcfa.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* math */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/de4e9065.woff2") format('woff2');
+  unicode-range: U+0302-0303, U+0305, U+0307-0308, U+0310, U+0312, U+0315, U+031A, U+0326-0327, U+032C, U+032F-0330, U+0332-0333, U+0338, U+033A, U+0346, U+034D, U+0391-03A1, U+03A3-03A9, U+03B1-03C9, U+03D1, U+03D5-03D6, U+03F0-03F1, U+03F4-03F5, U+2016-2017, U+2034-2038, U+203C, U+2040, U+2043, U+2047, U+2050, U+2057, U+205F, U+2070-2071, U+2074-208E, U+2090-209C, U+20D0-20DC, U+20E1, U+20E5-20EF, U+2100-2112, U+2114-2115, U+2117-2121, U+2123-214F, U+2190, U+2192, U+2194-21AE, U+21B0-21E5, U+21F1-21F2, U+21F4-2211, U+2213-2214, U+2216-22FF, U+2308-230B, U+2310, U+2319, U+231C-2321, U+2336-237A, U+237C, U+2395, U+239B-23B7, U+23D0, U+23DC-23E1, U+2474-2475, U+25AF, U+25B3, U+25B7, U+25BD, U+25C1, U+25CA, U+25CC, U+25FB, U+266D-266F, U+27C0-27FF, U+2900-2AFF, U+2B0E-2B11, U+2B30-2B4C, U+2BFE, U+3030, U+FF5B, U+FF5D, U+1D400-1D7FF, U+1EE00-1EEFF;
+}
+/* symbols */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/4f664fed.woff2") format('woff2');
+  unicode-range: U+0001-000C, U+000E-001F, U+007F-009F, U+20DD-20E0, U+20E2-20E4, U+2150-218F, U+2190, U+2192, U+2194-2199, U+21AF, U+21E6-21F0, U+21F3, U+2218-2219, U+2299, U+22C4-22C6, U+2300-243F, U+2440-244A, U+2460-24FF, U+25A0-27BF, U+2800-28FF, U+2921-2922, U+2981, U+29BF, U+29EB, U+2B00-2BFF, U+4DC0-4DFF, U+FFF9-FFFB, U+10140-1018E, U+10190-1019C, U+101A0, U+101D0-101FD, U+102E0-102FB, U+10E60-10E7E, U+1D2C0-1D2D3, U+1D2E0-1D37F, U+1F000-1F0FF, U+1F100-1F1AD, U+1F1E6-1F1FF, U+1F30D-1F30F, U+1F315, U+1F31C, U+1F31E, U+1F320-1F32C, U+1F336, U+1F378, U+1F37D, U+1F382, U+1F393-1F39F, U+1F3A7-1F3A8, U+1F3AC-1F3AF, U+1F3C2, U+1F3C4-1F3C6, U+1F3CA-1F3CE, U+1F3D4-1F3E0, U+1F3ED, U+1F3F1-1F3F3, U+1F3F5-1F3F7, U+1F408, U+1F415, U+1F41F, U+1F426, U+1F43F, U+1F441-1F442, U+1F444, U+1F446-1F449, U+1F44C-1F44E, U+1F453, U+1F46A, U+1F47D, U+1F4A3, U+1F4B0, U+1F4B3, U+1F4B9, U+1F4BB, U+1F4BF, U+1F4C8-1F4CB, U+1F4D6, U+1F4DA, U+1F4DF, U+1F4E3-1F4E6, U+1F4EA-1F4ED, U+1F4F7, U+1F4F9-1F4FB, U+1F4FD-1F4FE, U+1F503, U+1F507-1F50B, U+1F50D, U+1F512-1F513, U+1F53E-1F54A, U+1F54F-1F5FA, U+1F610, U+1F650-1F67F, U+1F687, U+1F68D, U+1F691, U+1F694, U+1F698, U+1F6AD, U+1F6B2, U+1F6B9-1F6BA, U+1F6BC, U+1F6C6-1F6CF, U+1F6D3-1F6D7, U+1F6E0-1F6EA, U+1F6F0-1F6F3, U+1F6F7-1F6FC, U+1F700-1F7FF, U+1F800-1F80B, U+1F810-1F847, U+1F850-1F859, U+1F860-1F887, U+1F890-1F8AD, U+1F8B0-1F8BB, U+1F8C0-1F8C1, U+1F900-1F90B, U+1F93B, U+1F946, U+1F984, U+1F996, U+1F9E9, U+1FA00-1FA6F, U+1FA70-1FA7C, U+1FA80-1FA89, U+1FA8F-1FAC6, U+1FACE-1FADC, U+1FADF-1FAE9, U+1FAF0-1FAF8, U+1FB00-1FBFF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/7a62f793.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/14ca0eb2.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/ea500994.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/6e90cc7a.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/11da89e9.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/3b846c64.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/4b1d2f4f.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/e05db6e8.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/6e90cc7a.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/11da89e9.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/3b846c64.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/4b1d2f4f.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/e05db6e8.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/app/fonts/6e90cc7a.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/app/fonts/11da89e9.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/app/fonts/3b846c64.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/app/fonts/4b1d2f4f.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/app/fonts/e05db6e8.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+
+/* Data Deck components. Every value comes from tokens.css. */
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font-sans); }
+.dd-row { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: flex-start; padding: var(--space-4); }
+.dd-col { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); }
+.dd-label { font: 700 12px/16px var(--font-sans); letter-spacing: .08em; text-transform: uppercase; }
+.dd-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* Button */
+.dd-btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: 44px; padding: var(--space-3) var(--space-5);
+  font: 700 15px/20px var(--font-sans); border: var(--border-w) solid var(--line); border-radius: var(--radius-md); cursor: pointer;
+  background: var(--surface); color: var(--ink); box-shadow: var(--shadow-hard); transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
+.dd-btn:active, .dd-btn.is-pressed { transform: translate(3px, 3px); box-shadow: var(--shadow-pressed); }
+.dd-btn:focus-visible { outline: 2px solid var(--cobalt); outline-offset: 2px; }
+.dd-btn--primary { background: var(--cobalt); color: var(--on-cobalt); }
+.dd-btn--danger { background: var(--danger); color: var(--on-danger); }
+.dd-btn--ghost { box-shadow: none; background: transparent; }
+
+/* Chip / badge */
+.dd-chip { display: inline-flex; align-items: center; gap: var(--space-1); padding: 3px var(--space-2); border: var(--border-w) solid var(--line); border-radius: var(--radius-sm);
+  font: 700 12px/16px var(--font-sans); letter-spacing: .06em; text-transform: uppercase; background: var(--surface); color: var(--ink); }
+.dd-chip--sun { background: var(--sun); color: #0E0F1A; }
+.dd-chip--mint { background: var(--mint); color: #0E0F1A; }
+.dd-chip--cobalt { background: var(--cobalt); color: var(--on-cobalt); }
+.dd-chip--danger { background: var(--danger); color: var(--on-danger); }
+
+/* Card */
+.dd-card { width: 168px; background: var(--surface); border: var(--border-w-thick) solid var(--rarity, var(--line)); border-radius: var(--radius-lg); box-shadow: var(--shadow-hard); overflow: hidden; }
+.dd-card__art { display: block; width: 100%; height: 112px; border-bottom: var(--border-w) solid var(--line); }
+.dd-card__body { padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); }
+.dd-card__rarity { color: var(--ink-muted); }
+.dd-card__rarity::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 6px; background: var(--rarity); vertical-align: 0; }
+.dd-card__name { font: 700 16px/20px var(--font-display); margin: 0; }
+.dd-card__why { font: 600 13px/18px var(--font-sans); color: var(--cobalt); text-decoration: underline; text-underline-offset: 3px; }
+.dd-spark { display: flex; align-items: flex-end; gap: 3px; height: 22px; }
+.dd-spark i { flex: 1; background: var(--ink); }
+.dd-card--common { --rarity: var(--rarity-common); }
+.dd-card--rare { --rarity: var(--rarity-rare); }
+.dd-card--epic { --rarity: var(--rarity-epic); }
+.dd-card--legendary { --rarity: var(--rarity-legendary); box-shadow: 4px 4px 0 var(--sun); }
+
+/* Bounty row */
+.dd-bounty { display: grid; grid-template-columns: 8px 1fr auto; gap: var(--space-3); align-items: stretch; background: var(--surface); border: var(--border-w) solid var(--line); border-radius: var(--radius-md); box-shadow: var(--shadow-hard); max-width: 360px; }
+.dd-bounty__mark { background: var(--surface-sunk); }
+.dd-bounty.is-match .dd-bounty__mark { background: var(--cobalt); }
+.dd-bounty__main { padding: var(--space-3) 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.dd-bounty__name { font: 700 16px/20px var(--font-display); }
+.dd-bounty__meta { font-size: 13px; line-height: 18px; color: var(--ink-muted); }
+.dd-bounty__price { padding: var(--space-3); text-align: right; font: 700 14px/20px var(--font-mono); }
+
+/* Sheet */
+.dd-sheet { max-width: 360px; background: var(--surface); border: var(--border-w) solid var(--line); border-radius: var(--radius-lg) var(--radius-lg) 0 0; box-shadow: var(--shadow-hard-lg); padding: var(--space-5) var(--space-4); display: flex; flex-direction: column; gap: var(--space-4); }
+.dd-ai { background: var(--surface-sunk); border: var(--border-w) dashed var(--line); border-radius: var(--radius-md); padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); }
+.dd-ai__label { color: var(--ink-muted); }
+.dd-facts { display: grid; grid-template-columns: 1fr 1fr; border: var(--border-w) solid var(--line); border-radius: var(--radius-md); }
+.dd-facts div { padding: var(--space-2) var(--space-3); border-top: var(--border-w) solid var(--line); }
+.dd-facts div:nth-child(-n+2) { border-top: 0; }
+.dd-facts div:nth-child(odd) { border-right: var(--border-w) solid var(--line); }
+.dd-facts dt { font: 700 11px/14px var(--font-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-muted); }
+.dd-facts dd { margin: 2px 0 0; font: 600 14px/20px var(--font-mono); }
+
+/* Kill switch */
+.dd-kill { position: relative; display: inline-grid; place-items: center; }
+.dd-kill__ring { position: absolute; inset: -8px; pointer-events: none; }
+.dd-kill__ring rect { fill: none; stroke: var(--danger); stroke-width: 4; }
+
+/* Batch row (researcher) */
+.dd-batch { display: grid; grid-template-columns: 72px 1fr auto; gap: var(--space-3); align-items: center; padding: var(--space-3); background: var(--surface); border: var(--border-w) solid var(--line); border-radius: var(--radius-md); font-size: 14px; max-width: 520px; }
+.dd-batch__n { font: 700 14px/20px var(--font-mono); }
+.dd-batch.is-locked { background: var(--surface-sunk); }
+.dd-batch.is-locked .dd-batch__data { filter: blur(3px); }
+.dd-batch__lock { font-weight: 700; color: var(--danger); }
+
+/* Toast */
+.dd-toast { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--ink); color: var(--paper); border-radius: var(--radius-md); box-shadow: var(--shadow-hard); max-width: 340px; }
+.dd-toast__amt { font: 700 18px/24px var(--font-mono); color: var(--mint); }
+
+@media (prefers-reduced-motion: reduce) { .dd-btn { transition: none; } }
+</style>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<style>/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/app/fonts/b3a1b777.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/app/fonts/28f745fd.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/app/fonts/39917771.woff2") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/app/fonts/aae8750a.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/app/fonts/5493a6d9.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/app/fonts/136fd36c.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/b3a1b777.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/28f745fd.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/39917771.woff2") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/aae8750a.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/5493a6d9.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/136fd36c.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/b3a1b777.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/28f745fd.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/39917771.woff2") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/aae8750a.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/5493a6d9.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/136fd36c.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/app/fonts/bc4ce82f.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/app/fonts/5a32dcfa.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* math */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/app/fonts/de4e9065.woff2") format('woff2');
+  unicode-range: U+0302-0303, U+0305, U+0307-0308, U+0310, U+0312, U+0315, U+031A, U+0326-0327, U+032C, U+032F-0330, U+0332-0333, U+0338, U+033A, U+0346, U+034D, U+0391-03A1, U+03A3-03A9, U+03B1-03C9, U+03D1, U+03D5-03D6, U+03F0-03F1, U+03F4-03F5, U+2016-2017, U+2034-2038, U+203C, U+2040, U+2043, U+2047, U+2050, U+2057, U+205F, U+2070-2071, U+2074-208E, U+2090-209C, U+20D0-20DC, U+20E1, U+20E5-20EF, U+2100-2112, U+2114-2115, U+2117-2121, U+2123-214F, U+2190, U+2192, U+2194-21AE, U+21B0-21E5, U+21F1-21F2, U+21F4-2211, U+2213-2214, U+2216-22FF, U+2308-230B, U+2310, U+2319, U+231C-2321, U+2336-237A, U+237C, U+2395, U+239B-23B7, U+23D0, U+23DC-23E1, U+2474-2475, U+25AF, U+25B3, U+25B7, U+25BD, U+25C1, U+25CA, U+25CC, U+25FB, U+266D-266F, U+27C0-27FF, U+2900-2AFF, U+2B0E-2B11, U+2B30-2B4C, U+2BFE, U+3030, U+FF5B, U+FF5D, U+1D400-1D7FF, U+1EE00-1EEFF;
+}
+/* symbols */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/app/fonts/4f664fed.woff2") format('woff2');
+  unicode-range: U+0001-000C, U+000E-001F, U+007F-009F, U+20DD-20E0, U+20E2-20E4, U+2150-218F, U+2190, U+2192, U+2194-2199, U+21AF, U+21E6-21F0, U+21F3, U+2218-2219, U+2299, U+22C4-22C6, U+2300-243F, U+2440-244A, U+2460-24FF, U+25A0-27BF, U+2800-28FF, U+2921-2922, U+2981, U+29BF, U+29EB, U+2B00-2BFF, U+4DC0-4DFF, U+FFF9-FFFB, U+10140-1018E, U+10190-1019C, U+101A0, U+101D0-101FD, U+102E0-102FB, U+10E60-10E7E, U+1D2C0-1D2D3, U+1D2E0-1D37F, U+1F000-1F0FF, U+1F100-1F1AD, U+1F1E6-1F1FF, U+1F30D-1F30F, U+1F315, U+1F31C, U+1F31E, U+1F320-1F32C, U+1F336, U+1F378, U+1F37D, U+1F382, U+1F393-1F39F, U+1F3A7-1F3A8, U+1F3AC-1F3AF, U+1F3C2, U+1F3C4-1F3C6, U+1F3CA-1F3CE, U+1F3D4-1F3E0, U+1F3ED, U+1F3F1-1F3F3, U+1F3F5-1F3F7, U+1F408, U+1F415, U+1F41F, U+1F426, U+1F43F, U+1F441-1F442, U+1F444, U+1F446-1F449, U+1F44C-1F44E, U+1F453, U+1F46A, U+1F47D, U+1F4A3, U+1F4B0, U+1F4B3, U+1F4B9, U+1F4BB, U+1F4BF, U+1F4C8-1F4CB, U+1F4D6, U+1F4DA, U+1F4DF, U+1F4E3-1F4E6, U+1F4EA-1F4ED, U+1F4F7, U+1F4F9-1F4FB, U+1F4FD-1F4FE, U+1F503, U+1F507-1F50B, U+1F50D, U+1F512-1F513, U+1F53E-1F54A, U+1F54F-1F5FA, U+1F610, U+1F650-1F67F, U+1F687, U+1F68D, U+1F691, U+1F694, U+1F698, U+1F6AD, U+1F6B2, U+1F6B9-1F6BA, U+1F6BC, U+1F6C6-1F6CF, U+1F6D3-1F6D7, U+1F6E0-1F6EA, U+1F6F0-1F6F3, U+1F6F7-1F6FC, U+1F700-1F7FF, U+1F800-1F80B, U+1F810-1F847, U+1F850-1F859, U+1F860-1F887, U+1F890-1F8AD, U+1F8B0-1F8BB, U+1F8C0-1F8C1, U+1F900-1F90B, U+1F93B, U+1F946, U+1F984, U+1F996, U+1F9E9, U+1FA00-1FA6F, U+1FA70-1FA7C, U+1FA80-1FA89, U+1FA8F-1FAC6, U+1FACE-1FADC, U+1FADF-1FAE9, U+1FAF0-1FAF8, U+1FB00-1FBFF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/app/fonts/7a62f793.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/app/fonts/14ca0eb2.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/app/fonts/ea500994.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/app/fonts/bc4ce82f.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/app/fonts/5a32dcfa.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* math */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/app/fonts/de4e9065.woff2") format('woff2');
+  unicode-range: U+0302-0303, U+0305, U+0307-0308, U+0310, U+0312, U+0315, U+031A, U+0326-0327, U+032C, U+032F-0330, U+0332-0333, U+0338, U+033A, U+0346, U+034D, U+0391-03A1, U+03A3-03A9, U+03B1-03C9, U+03D1, U+03D5-03D6, U+03F0-03F1, U+03F4-03F5, U+2016-2017, U+2034-2038, U+203C, U+2040, U+2043, U+2047, U+2050, U+2057, U+205F, U+2070-2071, U+2074-208E, U+2090-209C, U+20D0-20DC, U+20E1, U+20E5-20EF, U+2100-2112, U+2114-2115, U+2117-2121, U+2123-214F, U+2190, U+2192, U+2194-21AE, U+21B0-21E5, U+21F1-21F2, U+21F4-2211, U+2213-2214, U+2216-22FF, U+2308-230B, U+2310, U+2319, U+231C-2321, U+2336-237A, U+237C, U+2395, U+239B-23B7, U+23D0, U+23DC-23E1, U+2474-2475, U+25AF, U+25B3, U+25B7, U+25BD, U+25C1, U+25CA, U+25CC, U+25FB, U+266D-266F, U+27C0-27FF, U+2900-2AFF, U+2B0E-2B11, U+2B30-2B4C, U+2BFE, U+3030, U+FF5B, U+FF5D, U+1D400-1D7FF, U+1EE00-1EEFF;
+}
+/* symbols */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/app/fonts/4f664fed.woff2") format('woff2');
+  unicode-range: U+0001-000C, U+000E-001F, U+007F-009F, U+20DD-20E0, U+20E2-20E4, U+2150-218F, U+2190, U+2192, U+2194-2199, U+21AF, U+21E6-21F0, U+21F3, U+2218-2219, U+2299, U+22C4-22C6, U+2300-243F, U+2440-244A, U+2460-24FF, U+25A0-27BF, U+2800-28FF, U+2921-2922, U+2981, U+29BF, U+29EB, U+2B00-2BFF, U+4DC0-4DFF, U+FFF9-FFFB, U+10140-1018E, U+10190-1019C, U+101A0, U+101D0-101FD, U+102E0-102FB, U+10E60-10E7E, U+1D2C0-1D2D3, U+1D2E0-1D37F, U+1F000-1F0FF, U+1F100-1F1AD, U+1F1E6-1F1FF, U+1F30D-1F30F, U+1F315, U+1F31C, U+1F31E, U+1F320-1F32C, U+1F336, U+1F378, U+1F37D, U+1F382, U+1F393-1F39F, U+1F3A7-1F3A8, U+1F3AC-1F3AF, U+1F3C2, U+1F3C4-1F3C6, U+1F3CA-1F3CE, U+1F3D4-1F3E0, U+1F3ED, U+1F3F1-1F3F3, U+1F3F5-1F3F7, U+1F408, U+1F415, U+1F41F, U+1F426, U+1F43F, U+1F441-1F442, U+1F444, U+1F446-1F449, U+1F44C-1F44E, U+1F453, U+1F46A, U+1F47D, U+1F4A3, U+1F4B0, U+1F4B3, U+1F4B9, U+1F4BB, U+1F4BF, U+1F4C8-1F4CB, U+1F4D6, U+1F4DA, U+1F4DF, U+1F4E3-1F4E6, U+1F4EA-1F4ED, U+1F4F7, U+1F4F9-1F4FB, U+1F4FD-1F4FE, U+1F503, U+1F507-1F50B, U+1F50D, U+1F512-1F513, U+1F53E-1F54A, U+1F54F-1F5FA, U+1F610, U+1F650-1F67F, U+1F687, U+1F68D, U+1F691, U+1F694, U+1F698, U+1F6AD, U+1F6B2, U+1F6B9-1F6BA, U+1F6BC, U+1F6C6-1F6CF, U+1F6D3-1F6D7, U+1F6E0-1F6EA, U+1F6F0-1F6F3, U+1F6F7-1F6FC, U+1F700-1F7FF, U+1F800-1F80B, U+1F810-1F847, U+1F850-1F859, U+1F860-1F887, U+1F890-1F8AD, U+1F8B0-1F8BB, U+1F8C0-1F8C1, U+1F900-1F90B, U+1F93B, U+1F946, U+1F984, U+1F996, U+1F9E9, U+1FA00-1FA6F, U+1FA70-1FA7C, U+1FA80-1FA89, U+1FA8F-1FAC6, U+1FACE-1FADC, U+1FADF-1FAE9, U+1FAF0-1FAF8, U+1FB00-1FBFF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/app/fonts/7a62f793.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/app/fonts/14ca0eb2.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/app/fonts/ea500994.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/bc4ce82f.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/5a32dcfa.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* math */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/de4e9065.woff2") format('woff2');
+  unicode-range: U+0302-0303, U+0305, U+0307-0308, U+0310, U+0312, U+0315, U+031A, U+0326-0327, U+032C, U+032F-0330, U+0332-0333, U+0338, U+033A, U+0346, U+034D, U+0391-03A1, U+03A3-03A9, U+03B1-03C9, U+03D1, U+03D5-03D6, U+03F0-03F1, U+03F4-03F5, U+2016-2017, U+2034-2038, U+203C, U+2040, U+2043, U+2047, U+2050, U+2057, U+205F, U+2070-2071, U+2074-208E, U+2090-209C, U+20D0-20DC, U+20E1, U+20E5-20EF, U+2100-2112, U+2114-2115, U+2117-2121, U+2123-214F, U+2190, U+2192, U+2194-21AE, U+21B0-21E5, U+21F1-21F2, U+21F4-2211, U+2213-2214, U+2216-22FF, U+2308-230B, U+2310, U+2319, U+231C-2321, U+2336-237A, U+237C, U+2395, U+239B-23B7, U+23D0, U+23DC-23E1, U+2474-2475, U+25AF, U+25B3, U+25B7, U+25BD, U+25C1, U+25CA, U+25CC, U+25FB, U+266D-266F, U+27C0-27FF, U+2900-2AFF, U+2B0E-2B11, U+2B30-2B4C, U+2BFE, U+3030, U+FF5B, U+FF5D, U+1D400-1D7FF, U+1EE00-1EEFF;
+}
+/* symbols */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/4f664fed.woff2") format('woff2');
+  unicode-range: U+0001-000C, U+000E-001F, U+007F-009F, U+20DD-20E0, U+20E2-20E4, U+2150-218F, U+2190, U+2192, U+2194-2199, U+21AF, U+21E6-21F0, U+21F3, U+2218-2219, U+2299, U+22C4-22C6, U+2300-243F, U+2440-244A, U+2460-24FF, U+25A0-27BF, U+2800-28FF, U+2921-2922, U+2981, U+29BF, U+29EB, U+2B00-2BFF, U+4DC0-4DFF, U+FFF9-FFFB, U+10140-1018E, U+10190-1019C, U+101A0, U+101D0-101FD, U+102E0-102FB, U+10E60-10E7E, U+1D2C0-1D2D3, U+1D2E0-1D37F, U+1F000-1F0FF, U+1F100-1F1AD, U+1F1E6-1F1FF, U+1F30D-1F30F, U+1F315, U+1F31C, U+1F31E, U+1F320-1F32C, U+1F336, U+1F378, U+1F37D, U+1F382, U+1F393-1F39F, U+1F3A7-1F3A8, U+1F3AC-1F3AF, U+1F3C2, U+1F3C4-1F3C6, U+1F3CA-1F3CE, U+1F3D4-1F3E0, U+1F3ED, U+1F3F1-1F3F3, U+1F3F5-1F3F7, U+1F408, U+1F415, U+1F41F, U+1F426, U+1F43F, U+1F441-1F442, U+1F444, U+1F446-1F449, U+1F44C-1F44E, U+1F453, U+1F46A, U+1F47D, U+1F4A3, U+1F4B0, U+1F4B3, U+1F4B9, U+1F4BB, U+1F4BF, U+1F4C8-1F4CB, U+1F4D6, U+1F4DA, U+1F4DF, U+1F4E3-1F4E6, U+1F4EA-1F4ED, U+1F4F7, U+1F4F9-1F4FB, U+1F4FD-1F4FE, U+1F503, U+1F507-1F50B, U+1F50D, U+1F512-1F513, U+1F53E-1F54A, U+1F54F-1F5FA, U+1F610, U+1F650-1F67F, U+1F687, U+1F68D, U+1F691, U+1F694, U+1F698, U+1F6AD, U+1F6B2, U+1F6B9-1F6BA, U+1F6BC, U+1F6C6-1F6CF, U+1F6D3-1F6D7, U+1F6E0-1F6EA, U+1F6F0-1F6F3, U+1F6F7-1F6FC, U+1F700-1F7FF, U+1F800-1F80B, U+1F810-1F847, U+1F850-1F859, U+1F860-1F887, U+1F890-1F8AD, U+1F8B0-1F8BB, U+1F8C0-1F8C1, U+1F900-1F90B, U+1F93B, U+1F946, U+1F984, U+1F996, U+1F9E9, U+1FA00-1FA6F, U+1FA70-1FA7C, U+1FA80-1FA89, U+1FA8F-1FAC6, U+1FACE-1FADC, U+1FADF-1FAE9, U+1FAF0-1FAF8, U+1FB00-1FBFF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/7a62f793.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/14ca0eb2.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/ea500994.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/bc4ce82f.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/5a32dcfa.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* math */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/de4e9065.woff2") format('woff2');
+  unicode-range: U+0302-0303, U+0305, U+0307-0308, U+0310, U+0312, U+0315, U+031A, U+0326-0327, U+032C, U+032F-0330, U+0332-0333, U+0338, U+033A, U+0346, U+034D, U+0391-03A1, U+03A3-03A9, U+03B1-03C9, U+03D1, U+03D5-03D6, U+03F0-03F1, U+03F4-03F5, U+2016-2017, U+2034-2038, U+203C, U+2040, U+2043, U+2047, U+2050, U+2057, U+205F, U+2070-2071, U+2074-208E, U+2090-209C, U+20D0-20DC, U+20E1, U+20E5-20EF, U+2100-2112, U+2114-2115, U+2117-2121, U+2123-214F, U+2190, U+2192, U+2194-21AE, U+21B0-21E5, U+21F1-21F2, U+21F4-2211, U+2213-2214, U+2216-22FF, U+2308-230B, U+2310, U+2319, U+231C-2321, U+2336-237A, U+237C, U+2395, U+239B-23B7, U+23D0, U+23DC-23E1, U+2474-2475, U+25AF, U+25B3, U+25B7, U+25BD, U+25C1, U+25CA, U+25CC, U+25FB, U+266D-266F, U+27C0-27FF, U+2900-2AFF, U+2B0E-2B11, U+2B30-2B4C, U+2BFE, U+3030, U+FF5B, U+FF5D, U+1D400-1D7FF, U+1EE00-1EEFF;
+}
+/* symbols */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/4f664fed.woff2") format('woff2');
+  unicode-range: U+0001-000C, U+000E-001F, U+007F-009F, U+20DD-20E0, U+20E2-20E4, U+2150-218F, U+2190, U+2192, U+2194-2199, U+21AF, U+21E6-21F0, U+21F3, U+2218-2219, U+2299, U+22C4-22C6, U+2300-243F, U+2440-244A, U+2460-24FF, U+25A0-27BF, U+2800-28FF, U+2921-2922, U+2981, U+29BF, U+29EB, U+2B00-2BFF, U+4DC0-4DFF, U+FFF9-FFFB, U+10140-1018E, U+10190-1019C, U+101A0, U+101D0-101FD, U+102E0-102FB, U+10E60-10E7E, U+1D2C0-1D2D3, U+1D2E0-1D37F, U+1F000-1F0FF, U+1F100-1F1AD, U+1F1E6-1F1FF, U+1F30D-1F30F, U+1F315, U+1F31C, U+1F31E, U+1F320-1F32C, U+1F336, U+1F378, U+1F37D, U+1F382, U+1F393-1F39F, U+1F3A7-1F3A8, U+1F3AC-1F3AF, U+1F3C2, U+1F3C4-1F3C6, U+1F3CA-1F3CE, U+1F3D4-1F3E0, U+1F3ED, U+1F3F1-1F3F3, U+1F3F5-1F3F7, U+1F408, U+1F415, U+1F41F, U+1F426, U+1F43F, U+1F441-1F442, U+1F444, U+1F446-1F449, U+1F44C-1F44E, U+1F453, U+1F46A, U+1F47D, U+1F4A3, U+1F4B0, U+1F4B3, U+1F4B9, U+1F4BB, U+1F4BF, U+1F4C8-1F4CB, U+1F4D6, U+1F4DA, U+1F4DF, U+1F4E3-1F4E6, U+1F4EA-1F4ED, U+1F4F7, U+1F4F9-1F4FB, U+1F4FD-1F4FE, U+1F503, U+1F507-1F50B, U+1F50D, U+1F512-1F513, U+1F53E-1F54A, U+1F54F-1F5FA, U+1F610, U+1F650-1F67F, U+1F687, U+1F68D, U+1F691, U+1F694, U+1F698, U+1F6AD, U+1F6B2, U+1F6B9-1F6BA, U+1F6BC, U+1F6C6-1F6CF, U+1F6D3-1F6D7, U+1F6E0-1F6EA, U+1F6F0-1F6F3, U+1F6F7-1F6FC, U+1F700-1F7FF, U+1F800-1F80B, U+1F810-1F847, U+1F850-1F859, U+1F860-1F887, U+1F890-1F8AD, U+1F8B0-1F8BB, U+1F8C0-1F8C1, U+1F900-1F90B, U+1F93B, U+1F946, U+1F984, U+1F996, U+1F9E9, U+1FA00-1FA6F, U+1FA70-1FA7C, U+1FA80-1FA89, U+1FA8F-1FAC6, U+1FACE-1FADC, U+1FADF-1FAE9, U+1FAF0-1FAF8, U+1FB00-1FBFF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/7a62f793.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/14ca0eb2.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/ea500994.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/6e90cc7a.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/11da89e9.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/3b846c64.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/4b1d2f4f.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/e05db6e8.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/6e90cc7a.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/11da89e9.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/3b846c64.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/4b1d2f4f.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/e05db6e8.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/app/fonts/6e90cc7a.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/app/fonts/11da89e9.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/app/fonts/3b846c64.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/app/fonts/4b1d2f4f.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/app/fonts/e05db6e8.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+</style>
+<style>
+body{margin:0;background:#F2F3F7;font-family:Onest,system-ui,sans-serif}
+.eb{font:700 12px/16px Onest,system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#4A4E63}
+.mono{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums}
+button{font-family:inherit}
+.scr{position:absolute;left:0;top:0;width:386px;height:840px;box-sizing:border-box;overflow:hidden;background:#F2F3F7}
+.hit{position:absolute;left:0;top:0;right:0;bottom:0;background:transparent;border:0;padding:0;cursor:pointer}
+.rowbtn{display:block;width:100%;background:none;border:0;padding:0;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.pro .dd-card{width:100%;box-sizing:border-box}
+.pro .dd-card__art{height:84px}
+.pro .dd-card__body{padding:10px;gap:6px}
+.pro .dd-card__name{min-height:40px}
+.pro .dd-spark{height:18px}
+.pro .dd-bounty{max-width:none}
+.pro .dd-sheet{max-width:none}
+.pro .dd-batch{max-width:none;grid-template-columns:96px minmax(0, 1fr) auto;padding:16px}
+.cell{position:relative}
+.pro .dd-batch.muted{background:#E6E8F0}
+.dealgrid{perspective:900px}
+.dealgrid .cell{animation:deal 400ms cubic-bezier(.2,.8,.2,1) both}
+.dealgrid .cell:nth-child(2){animation-delay:80ms}
+.dealgrid .cell:nth-child(3){animation-delay:160ms}
+.dealgrid .cell:nth-child(4){animation-delay:240ms}
+.dealgrid .cell:nth-child(5){animation-delay:320ms}
+.dealgrid .cell.legend{animation:deal 400ms cubic-bezier(.2,.8,.2,1) 400ms both, glow 400ms cubic-bezier(.2,.8,.2,1) 800ms both}
+@keyframes deal{0%{opacity:0;transform:translateY(-24px) rotateY(-90deg)}100%{opacity:1;transform:none}}
+@keyframes glow{0%{box-shadow:0 0 0 0 rgba(255,194,26,0)}50%{box-shadow:0 0 28px 10px rgba(255,194,26,.9)}100%{box-shadow:0 0 0 0 rgba(255,194,26,0)}}
+.backdrop{position:absolute;left:0;top:0;width:386px;height:840px;background:rgba(14,15,26,.55);backdrop-filter:blur(4px);z-index:20;animation:fadeIn 220ms cubic-bezier(.2,.8,.2,1) both}
+.backdrop.out{animation:fadeOut 250ms cubic-bezier(.6,0,.8,.2) both}
+.sheetwrap{position:absolute;left:0;right:0;bottom:0;z-index:21;animation:sheetUp 300ms cubic-bezier(.2,.8,.2,1) both}
+.sheetwrap.out{animation:sheetDown 250ms cubic-bezier(.6,0,.8,.2) both}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes fadeOut{from{opacity:1}to{opacity:0}}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:none}}
+@keyframes sheetDown{from{transform:none}to{transform:translateY(100%)}}
+.shimmer{height:14px;margin:0 0 8px;background:linear-gradient(90deg,#E6E8F0 0%,#F2F3F7 45%,#E6E8F0 90%);background-size:200% 100%;animation:sweep 400ms cubic-bezier(.2,.8,.2,1) both}
+@keyframes sweep{from{background-position:100% 0}to{background-position:0 0}}
+.line{display:block;animation:lineIn 220ms cubic-bezier(.2,.8,.2,1) both}
+.line.l2{animation-delay:140ms}
+.line.l3{animation-delay:280ms}
+@keyframes lineIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.cbtn{width:100%;overflow:hidden;white-space:nowrap;transition:width 200ms cubic-bezier(.2,.8,.2,1)}
+.cbtn.morph{width:56px;padding-left:0;padding-right:0}
+.draw{stroke-dasharray:60;stroke-dashoffset:60;animation:drawIn 200ms cubic-bezier(.2,.8,.2,1) forwards}
+.draw.lock{animation-duration:300ms}
+@keyframes drawIn{to{stroke-dashoffset:0}}
+.toast{position:absolute;left:16px;right:16px;top:12px;z-index:30;animation:toastDown 250ms cubic-bezier(.2,.8,.2,1) both}
+.toast.out{animation:toastUp 250ms cubic-bezier(.6,0,.8,.2) both}
+@keyframes toastDown{from{transform:translateY(-140%)}to{transform:none}}
+@keyframes toastUp{from{transform:none}to{transform:translateY(-140%)}}
+.rowin{animation:rowIn 250ms cubic-bezier(.2,.8,.2,1) both}
+@keyframes rowIn{from{opacity:0;transform:translateX(48px)}to{opacity:1;transform:none}}
+.blurin{animation:blurIn 300ms cubic-bezier(.2,.8,.2,1) both}
+@keyframes blurIn{from{filter:blur(0)}to{filter:blur(3px)}}
+.ringrect{fill:none;stroke:#D9142B;stroke-width:4;stroke-dasharray:100 100;stroke-dashoffset:100;transition:stroke-dashoffset 200ms cubic-bezier(.2,.8,.2,1)}
+.ringrect.on{stroke-dashoffset:0;transition:stroke-dashoffset 1200ms linear}
+@media (prefers-reduced-motion: reduce){
+.dealgrid .cell,.dealgrid .cell.legend,.backdrop,.backdrop.out,.sheetwrap,.sheetwrap.out,.shimmer,.line,.toast,.toast.out,.rowin,.blurin{animation:fadeIn 120ms ease-out both !important;animation-delay:0ms !important}
+.cbtn{transition:none}
+.draw{animation:none !important;stroke-dashoffset:0}
+.ringrect,.ringrect.on{transition-duration:1200ms}
+}
+</style>
+</helmet>
+<div class="pro" style="width:1970px;height:1040px;box-sizing:border-box;padding:32px 40px;background:var(--paper);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;gap:20px;overflow:hidden">
+
+<!-- Step tracker -->
+<div style="display:flex;gap:8px;align-items:stretch;height:52px;flex-shrink:0">
+<sc-for list="{{steps}}" as="t" hint-placeholder-count="10">
+<div style="flex:1;min-width:0;box-sizing:border-box;border:2px solid var(--ink);border-radius:4px;padding:6px 10px;display:flex;flex-direction:column;justify-content:center;background:{{t.bg}};color:{{t.fg}}">
+<span class="mono" style="font-size:11px;line-height:14px;font-weight:700">{{t.n}}</span>
+<span style="font:700 13px/16px var(--font-sans);white-space:nowrap;overflow:hidden">{{t.label}}</span>
+</div>
+</sc-for>
+<button class="dd-btn" type="button" sc-camel-on-click="{{restart}}" style="flex-shrink:0;min-height:52px">Restart demo</button>
+</div>
+
+<div style="display:flex;gap:60px;align-items:flex-start">
+
+<!-- PLAYER PHONE -->
+<div style="position:relative;width:390px;height:844px;box-sizing:border-box;border:2px solid var(--ink);box-shadow:6px 6px 0 var(--ink);background:var(--paper);overflow:hidden;flex-shrink:0;margin-top:28px">
+
+<!-- 1 Onboarding -->
+<sc-if value="{{onOnboard}}" hint-placeholder-val="{{ true }}">
+<div class="scr" style="padding:40px 16px 24px;display:flex;flex-direction:column;gap:20px">
+<div style="border:2px solid var(--ink);box-shadow:4px 4px 0 var(--ink);margin-right:4px;line-height:0;overflow:hidden">
+<svg sc-camel-view-box="0 0 354 220" width="100%" height="220" sc-camel-preserve-aspect-ratio="xMidYMid slice" role="img" aria-label="Overlapping cobalt, tangerine and sun shapes" style="display:block">
+<rect width="354" height="220" style="fill:var(--cobalt)"></rect><circle cx="230" cy="220" r="110" style="fill:var(--tangerine)"></circle><rect x="36" y="32" width="90" height="90" style="fill:var(--sun)"></rect><rect x="88" y="80" width="90" height="90" style="fill:none;stroke:var(--ink);stroke-width:4"></rect><rect x="250" y="28" width="60" height="14" style="fill:var(--ink)"></rect><rect x="250" y="50" width="42" height="14" style="fill:var(--ink)"></rect><rect x="250" y="72" width="52" height="14" style="fill:var(--ink)"></rect>
+</svg>
+</div>
+<h1 style="margin:0;font:800 44px/46px var(--font-display);letter-spacing:-.02em">Data Deck</h1>
+<p style="margin:0;font:500 17px/26px var(--font-sans)">Turn a week of wearable data into collectible cards. Lend a card to research for a set time, and hold the off switch yourself.</p>
+<label style="display:flex;gap:12px;align-items:center;min-height:44px;font:600 15px/22px var(--font-sans)">
+<input type="checkbox" checked="{{ageOk}}" sc-camel-on-change="{{toggleAge}}" style="width:24px;height:24px;margin:0;flex-shrink:0;accent-color:#2B3BFF">
+I confirm I am 18 or older
+</label>
+<div style="background:var(--surface-sunk);border:2px solid var(--ink);border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:8px">
+<span class="dd-chip dd-chip--sun" style="align-self:flex-start">Demo</span>
+<span style="font:400 15px/22px var(--font-sans)">This demo uses sample data only. No real health data is read or shared.</span>
+</div>
+<div style="margin-top:auto">
+<sc-if value="{{ageOk}}" hint-placeholder-val="{{ false }}"><button class="dd-btn dd-btn--primary" type="button" sc-camel-on-click="{{goDeck}}" style="width:100%;box-sizing:border-box">Continue</button></sc-if>
+<sc-if value="{{noAge}}" hint-placeholder-val="{{ true }}"><button class="dd-btn" type="button" disabled="{{noAge}}" style="width:100%;box-sizing:border-box;background:var(--surface-sunk);color:var(--ink-muted);box-shadow:none;cursor:not-allowed">Tick the box to continue</button></sc-if>
+</div>
+</div>
+</sc-if>
+
+<!-- 2 My Deck -->
+<sc-if value="{{onDeck}}" hint-placeholder-val="{{ false }}">
+<div class="scr" style="padding:40px 16px 16px;display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;flex-direction:column;gap:4px">
+<span class="eb">Week 38</span>
+<h1 style="margin:0;font:700 30px/34px var(--font-display);letter-spacing:-.01em">Your deck</h1>
+</div>
+
+<sc-if value="{{deckClosed}}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;flex-grow:1;gap:20px;padding-top:8px">
+<p style="margin:0;font:400 15px/22px var(--font-sans);color:var(--ink-muted)">Your weekly pack is ready. It holds six cards made from last week's data.</p>
+<div style="display:flex;justify-content:center">
+<div style="position:relative;width:236px;height:350px;border:2px solid var(--ink);box-shadow:6px 6px 0 var(--ink);overflow:hidden;line-height:0">
+<svg sc-camel-view-box="0 0 232 346" width="232" height="346" role="img" aria-label="Sealed pack with cobalt disc, sun square and ink bars" style="display:block"><rect width="232" height="346" style="fill:var(--tangerine)"></rect><circle cx="116" cy="190" r="90" style="fill:var(--cobalt);stroke:var(--ink);stroke-width:3"></circle><rect x="140" y="50" width="56" height="56" style="fill:var(--sun);stroke:var(--ink);stroke-width:3"></rect><rect x="0" y="270" width="232" height="8" style="fill:var(--ink)"></rect><rect x="0" y="284" width="232" height="6" style="fill:var(--ink)"></rect><path d="M0 0 H232 V22 L221 34 L209 22 L197 34 L185 22 L173 34 L161 22 L149 34 L137 22 L125 34 L113 22 L101 34 L89 22 L77 34 L65 22 L53 34 L41 22 L29 34 L17 22 L7 34 L0 28 Z" style="fill:var(--ink)"></path></svg>
+<div style="position:absolute;left:16px;right:16px;bottom:16px;background:var(--surface);border:2px solid var(--ink);padding:8px 12px;display:flex;justify-content:space-between;align-items:center;line-height:1"><span class="eb" style="color:var(--ink)">Week 38 pack</span><span class="mono" style="font-size:14px;line-height:20px;font-weight:600">6 cards</span></div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;margin-top:auto">
+<span class="mono" style="font-size:14px;line-height:20px;font-weight:600;text-align:center">0 of 6 cards revealed</span>
+<button class="dd-btn dd-btn--primary" type="button" sc-camel-on-click="{{openPack}}" style="width:100%;box-sizing:border-box">Open this week's pack</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{deckOpen}}" hint-placeholder-val="{{ false }}">
+<div class="{{gridCls}}" style="display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:12px;padding-right:4px;padding-top:4px">
+<sc-for list="{{cards}}" as="c" hint-placeholder-count="6">
+<div class="cell {{c.extra}}" id="{{c.domId}}">
+<article class="dd-card {{c.cls}}">
+<sc-if value="{{c.isEarly}}" hint-placeholder-val="{{ true }}"><svg class="dd-card__art" sc-camel-view-box="0 0 168 112" sc-camel-preserve-aspect-ratio="xMidYMid slice" role="img" aria-label="Sunrise over horizon bars"><rect width="168" height="112" style="fill:var(--tangerine)"></rect><circle cx="84" cy="88" r="40" style="fill:var(--sun)"></circle><rect x="0" y="84" width="168" height="8" style="fill:var(--ink)"></rect><rect x="0" y="96" width="168" height="6" style="fill:var(--ink)"></rect><rect x="0" y="106" width="168" height="6" style="fill:var(--ink)"></rect></svg></sc-if>
+<sc-if value="{{c.isStep}}" hint-placeholder-val="{{ false }}"><svg class="dd-card__art" sc-camel-view-box="0 0 168 112" sc-camel-preserve-aspect-ratio="xMidYMid slice" role="img" aria-label="Rising staircase of blocks"><rect width="168" height="112" style="fill:var(--mint)"></rect><rect x="24" y="84" width="24" height="28" style="fill:var(--ink)"></rect><rect x="48" y="68" width="24" height="44" style="fill:var(--ink)"></rect><rect x="72" y="52" width="24" height="60" style="fill:var(--ink)"></rect><rect x="96" y="36" width="24" height="76" style="fill:var(--ink)"></rect><rect x="120" y="20" width="24" height="92" style="fill:var(--ink)"></rect><rect x="120" y="8" width="24" height="8" style="fill:var(--sun)"></rect></svg></sc-if>
+<sc-if value="{{c.isDeep}}" hint-placeholder-val="{{ false }}"><svg class="dd-card__art" sc-camel-view-box="0 0 168 112" sc-camel-preserve-aspect-ratio="xMidYMid slice" role="img" aria-label="Crescent moon and square stars"><rect width="168" height="112" style="fill:var(--cobalt)"></rect><circle cx="108" cy="56" r="30" style="fill:var(--sun)"></circle><circle cx="122" cy="46" r="27" style="fill:var(--cobalt)"></circle><rect x="26" y="24" width="8" height="8" style="fill:var(--sun)"></rect><rect x="52" y="62" width="5" height="5" style="fill:var(--sun)"></rect><rect x="70" y="18" width="6" height="6" style="fill:var(--sun)"></rect></svg></sc-if>
+<sc-if value="{{c.isCalm}}" hint-placeholder-val="{{ false }}"><svg class="dd-card__art" sc-camel-view-box="0 0 168 112" sc-camel-preserve-aspect-ratio="xMidYMid slice" role="img" aria-label="Pulse line that flattens out"><rect width="168" height="112" style="fill:var(--sun)"></rect><polyline points="0,60 40,60 52,26 64,90 76,42 86,60 150,60" style="fill:none;stroke:var(--ink);stroke-width:6;stroke-linejoin:miter"></polyline><rect x="150" y="54" width="12" height="12" style="fill:var(--tangerine)"></rect></svg></sc-if>
+<sc-if value="{{c.isMarathon}}" hint-placeholder-val="{{ false }}"><svg class="dd-card__art" sc-camel-view-box="0 0 168 112" sc-camel-preserve-aspect-ratio="xMidYMid slice" role="img" aria-label="Route line with start and finish"><rect width="168" height="112" style="fill:var(--violet)"></rect><path d="M20 92 V40 H72 V76 H128 V24 H150" style="fill:none;stroke:var(--paper);stroke-width:8;stroke-linejoin:miter"></path><rect x="12" y="86" width="16" height="16" style="fill:var(--ink)"></rect><rect x="142" y="16" width="16" height="16" style="fill:var(--sun)"></rect></svg></sc-if>
+<sc-if value="{{c.isPerfect}}" hint-placeholder-val="{{ false }}"><svg class="dd-card__art" sc-camel-view-box="0 0 168 112" sc-camel-preserve-aspect-ratio="xMidYMid slice" role="img" aria-label="Moon, stairs and pulse joined as a constellation over an ink halftone"><defs><pattern id="pht-a" width="6" height="6" sc-camel-pattern-units="userSpaceOnUse"><circle cx="3" cy="3" r="1.1" style="fill:var(--ink);opacity:.35"></circle></pattern><pattern id="pht-b" width="8" height="8" sc-camel-pattern-units="userSpaceOnUse"><circle cx="4" cy="4" r="2.4" style="fill:var(--ink)"></circle></pattern></defs><rect width="168" height="112" style="fill:var(--sun)"></rect><rect width="168" height="112" fill="url(#pht-a)"></rect><polygon points="0,112 0,54 96,112" fill="url(#pht-b)" opacity=".5"></polygon><path d="M36 34 L84 70 L134 36" style="fill:none;stroke:var(--ink);stroke-width:3"></path><circle cx="36" cy="34" r="16" style="fill:var(--cobalt)"></circle><circle cx="43" cy="28" r="13" style="fill:var(--sun)"></circle><rect x="70" y="72" width="10" height="16" style="fill:var(--ink)"></rect><rect x="80" y="62" width="10" height="26" style="fill:var(--ink)"></rect><rect x="90" y="52" width="10" height="36" style="fill:var(--ink)"></rect><polyline points="112,36 124,36 130,22 138,50 144,36 158,36" style="fill:none;stroke:var(--tangerine);stroke-width:5"></polyline></svg></sc-if>
+<div class="dd-card__body">
+<span class="dd-label dd-card__rarity">{{c.word}}</span>
+<h3 class="dd-card__name">{{c.name}}</h3>
+<div class="dd-spark" role="img" aria-label="{{c.spark}}"><sc-for list="{{c.bars}}" as="b" hint-placeholder-count="7"><i style="height: {{b}}%"></i></sc-for></div>
+<span class="dd-card__why">Why this card?</span>
+</div>
+</article>
+<sc-if value="{{c.isDeep}}" hint-placeholder-val="{{ false }}"><button class="hit" type="button" aria-label="Open Deep Sleeper details" sc-camel-on-click="{{openDetail}}"></button></sc-if>
+</div>
+</sc-for>
+</div>
+<span style="font:600 13px/18px var(--font-sans);color:var(--ink-muted);text-align:center">Tap Deep Sleeper to see its details.</span>
+</sc-if>
+</div>
+</sc-if>
+
+<!-- 3 Card detail -->
+<sc-if value="{{onDetail}}" hint-placeholder-val="{{ false }}">
+<div class="scr" style="padding:32px 16px 24px;display:flex;flex-direction:column;gap:14px">
+<button type="button" sc-camel-on-click="{{backToDeckPlain}}" style="display:inline-flex;align-items:center;gap:8px;min-height:44px;align-self:flex-start;background:none;border:0;padding:0;cursor:pointer;color:var(--ink);font:700 15px/20px var(--font-sans)">
+<svg width="20" height="20" sc-camel-view-box="0 0 24 24" aria-hidden="true" style="fill:none;stroke:var(--ink);stroke-width:2.5;stroke-linecap:square;stroke-linejoin:miter"><path d="M15 5 L8 12 L15 19"></path></svg>Your deck</button>
+<div style="position:relative;width:200px;align-self:center;box-sizing:border-box;padding:10px;border:2px solid var(--ink);background:var(--surface-sunk);box-shadow:6px 6px 0 var(--ink);display:flex;flex-direction:column;gap:10px">
+<div style="position:absolute;left:-7px;top:-7px;width:12px;height:12px;background:var(--sun);border:2px solid var(--ink)"></div>
+<div style="position:absolute;right:-7px;top:-7px;width:12px;height:12px;background:var(--sun);border:2px solid var(--ink)"></div>
+<div style="position:absolute;left:-7px;bottom:-7px;width:12px;height:12px;background:var(--sun);border:2px solid var(--ink)"></div>
+<div style="position:absolute;right:-7px;bottom:-7px;width:12px;height:12px;background:var(--sun);border:2px solid var(--ink)"></div>
+<div id="detailCard" style="position:relative;width:168px;align-self:center;transform-origin:50% 50%;opacity:{{dOp}};transform:{{dTf}};transition:{{dTr}}">
+<article class="dd-card dd-card--rare" style="width:168px">
+<svg class="dd-card__art" sc-camel-view-box="0 0 168 112" sc-camel-preserve-aspect-ratio="xMidYMid slice" role="img" aria-label="Crescent moon and square stars" style="height:84px"><rect width="168" height="112" style="fill:var(--cobalt)"></rect><circle cx="108" cy="56" r="30" style="fill:var(--sun)"></circle><circle cx="122" cy="46" r="27" style="fill:var(--cobalt)"></circle><rect x="26" y="24" width="8" height="8" style="fill:var(--sun)"></rect><rect x="52" y="62" width="5" height="5" style="fill:var(--sun)"></rect><rect x="70" y="18" width="6" height="6" style="fill:var(--sun)"></rect></svg>
+<div class="dd-card__body" style="padding:10px;gap:6px"><span class="dd-label dd-card__rarity">Rare</span><h3 class="dd-card__name" style="min-height:40px">Deep Sleeper</h3><div class="dd-spark" style="height:18px" role="img" aria-label="Sleep hours, last 7 days"><i style="height:82%"></i><i style="height:88%"></i><i style="height:84%"></i><i style="height:90%"></i><i style="height:86%"></i><i style="height:95%"></i><i style="height:92%"></i></div><span class="dd-card__why">Why this card?</span></div>
+</article>
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;padding:0 2px">
+<span class="eb" style="color:var(--ink)">Level 3</span>
+<div style="display:flex;gap:4px" role="img" aria-label="Level 3 of 5"><div style="width:14px;height:14px;box-sizing:border-box;border:2px solid var(--ink);background:var(--sun)"></div><div style="width:14px;height:14px;box-sizing:border-box;border:2px solid var(--ink);background:var(--sun)"></div><div style="width:14px;height:14px;box-sizing:border-box;border:2px solid var(--ink);background:var(--sun)"></div><div style="width:14px;height:14px;box-sizing:border-box;border:2px solid var(--ink);background:var(--surface)"></div><div style="width:14px;height:14px;box-sizing:border-box;border:2px solid var(--ink);background:var(--surface)"></div></div>
+</div>
+</div>
+<span style="align-self:center;font:400 13px/18px var(--font-sans);color:var(--ink-muted);text-align:center">Level is cosmetic only. It never changes what a bounty pays.</span>
+<div style="background:var(--surface);border:2px solid var(--ink);border-radius:4px;box-shadow:4px 4px 0 var(--ink);margin-right:4px;display:flex;flex-direction:column">
+<button type="button" sc-camel-on-click="{{toggleWhy}}" aria-expanded="{{why}}" style="display:flex;justify-content:space-between;align-items:center;min-height:44px;padding:0 12px;background:none;border:0;cursor:pointer;text-align:left">
+<span class="eb" style="color:var(--ink)">Why this card?</span><span class="mono" style="font-size:16px;font-weight:700">{{whySign}}</span></button>
+<sc-if value="{{why}}" hint-placeholder-val="{{ false }}"><div class="line" style="padding:0 12px 12px;font:400 14px/20px var(--font-sans)">Deep Sleeper is awarded when you sleep 7 hours or more on at least 5 nights in a week. This week you did it on <span class="mono" style="font-weight:600">6 nights</span>, using your own readings.</div></sc-if>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px;margin-top:auto">
+<span class="dd-chip dd-chip--cobalt" style="align-self:flex-start">1 matching bounty</span>
+<button class="dd-btn dd-btn--primary" type="button" sc-camel-on-click="{{toBounties}}" style="width:100%;box-sizing:border-box">See bounties</button>
+</div>
+</div>
+</sc-if>
+
+<!-- 4 Bounty board (also sits behind the consent sheet) -->
+<sc-if value="{{onBounties}}" hint-placeholder-val="{{ false }}">
+<div class="scr" style="padding:40px 16px 24px;display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;flex-direction:column;gap:8px">
+<span class="eb">3 open requests</span>
+<h1 style="margin:0;font:700 30px/34px var(--font-display);letter-spacing:-.01em">Bounties</h1>
+<p style="margin:0;font:400 14px/20px var(--font-sans);color:var(--ink-muted)">Each request shows how long it can look and how long it keeps the data.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:14px;padding-right:4px">
+<sc-for list="{{bounties}}" as="b" hint-placeholder-count="3">
+<button class="rowbtn" type="button" sc-camel-on-click="{{b.go}}">
+<div class="dd-bounty {{b.cls}}">
+<div class="dd-bounty__mark"></div>
+<div class="dd-bounty__main" style="gap:5px">
+<sc-if value="{{b.match}}" hint-placeholder-val="{{ true }}"><span class="dd-chip dd-chip--cobalt" style="align-self:flex-start">Matches your card</span></sc-if>
+<span class="dd-bounty__name">{{b.name}}</span>
+<span class="dd-bounty__meta">{{b.org}}</span>
+<dl style="margin:2px 0 0;display:grid;grid-template-columns:72px minmax(0, 1fr);gap:1px 8px;font-size:13px;line-height:18px">
+<dt style="color:var(--ink-muted)">Card</dt><dd style="margin:0;font-weight:600">{{b.card}}</dd>
+<dt style="color:var(--ink-muted)">Access</dt><dd style="margin:0;font-weight:600">{{b.access}}</dd>
+<dt style="color:var(--ink-muted)">Window</dt><dd style="margin:0;font-weight:600">{{b.window}}</dd>
+<dt style="color:var(--ink-muted)">Kept</dt><dd style="margin:0;font-weight:600">{{b.kept}}</dd>
+<dt style="color:var(--ink-muted)">Ethics ref</dt><dd style="margin:0;font-weight:600;font-family:var(--font-mono);font-size:12px">{{b.ethics}}</dd>
+</dl>
+</div>
+<div class="dd-bounty__price">{{b.price}}<br><span class="dd-label" style="color:var(--ink-muted)">{{b.unit}}</span></div>
+</div>
+</button>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<!-- 6 Grant active -->
+<sc-if value="{{onGrant}}" hint-placeholder-val="{{ false }}">
+<div class="scr" style="padding:40px 16px 20px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;flex-direction:column;gap:6px">
+<span class="eb">Grant {{grantShort}} · Trinity Sleep Lab</span>
+<h1 style="margin:0;font:700 30px/34px var(--font-display);letter-spacing:-.01em">Grant active</h1>
+</div>
+<div style="display:flex;gap:14px;align-items:flex-start">
+<div style="position:relative;width:168px;flex-shrink:0">
+<article class="dd-card dd-card--rare" style="width:168px">
+<svg class="dd-card__art" sc-camel-view-box="0 0 168 112" sc-camel-preserve-aspect-ratio="xMidYMid slice" role="img" aria-label="Crescent moon and square stars" style="height:84px"><rect width="168" height="112" style="fill:var(--cobalt)"></rect><circle cx="108" cy="56" r="30" style="fill:var(--sun)"></circle><circle cx="122" cy="46" r="27" style="fill:var(--cobalt)"></circle><rect x="26" y="24" width="8" height="8" style="fill:var(--sun)"></rect><rect x="52" y="62" width="5" height="5" style="fill:var(--sun)"></rect><rect x="70" y="18" width="6" height="6" style="fill:var(--sun)"></rect></svg>
+<div class="dd-card__body" style="padding:10px;gap:6px"><span class="dd-label dd-card__rarity">Rare</span><h3 class="dd-card__name" style="min-height:40px">Deep Sleeper</h3><div class="dd-spark" style="height:18px" role="img" aria-label="Sleep hours, last 7 days"><i style="height:82%"></i><i style="height:88%"></i><i style="height:84%"></i><i style="height:90%"></i><i style="height:86%"></i><i style="height:95%"></i><i style="height:92%"></i></div><span class="dd-card__why">Why this card?</span></div>
+</article>
+<span class="dd-chip dd-chip--sun" style="position:absolute;left:11px;top:11px">Lending · 30d</span>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
+<span class="dd-chip dd-chip--mint">Active</span>
+<div style="position:relative;width:110px;height:110px">
+<svg width="110" height="110" sc-camel-view-box="0 0 120 120" role="img" aria-label="Countdown ring, almost all of the 30 days remaining"><circle cx="60" cy="60" r="48" style="fill:none;stroke:var(--surface-sunk);stroke-width:12"></circle><circle cx="60" cy="60" r="48" transform="rotate(-90 60 60)" style="fill:none;stroke:var(--sun);stroke-width:12;stroke-dasharray:292 10"></circle><circle cx="60" cy="60" r="54" style="fill:none;stroke:var(--ink);stroke-width:2"></circle><circle cx="60" cy="60" r="42" style="fill:none;stroke:var(--ink);stroke-width:2"></circle></svg>
+<div style="position:absolute;left:0;top:0;width:110px;height:110px;display:flex;flex-direction:column;align-items:center;justify-content:center"><span class="mono" style="font-size:15px;line-height:20px;font-weight:700">29d 23h</span><span class="eb" style="font-size:11px;line-height:14px">left</span></div>
+</div>
+<span class="mono" style="font-size:13px;line-height:18px;font-weight:600">30-day stream</span>
+</div>
+</div>
+<div style="background:var(--surface);border:2px solid var(--ink);border-radius:4px;box-shadow:4px 4px 0 var(--ink);margin-right:4px;padding:12px;display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;justify-content:space-between;align-items:baseline"><span class="eb" style="color:var(--ink)">Batches released</span><span class="mono" style="font-size:14px;line-height:20px;font-weight:700">{{batches}} of 30</span></div>
+<div style="display:grid;grid-template-columns:repeat(15, minmax(0, 1fr));gap:3px" role="img" aria-label="{{batches}} of 30 batches released">
+<sc-for list="{{cells}}" as="c" hint-placeholder-count="30"><div style="height:16px;box-sizing:border-box;border:2px solid var(--ink);background: {{c.bg}}"></div></sc-for>
+</div>
+<sc-if value="{{noBatches}}" hint-placeholder-val="{{ false }}"><span class="mono" style="font-size:13px;line-height:18px;color:var(--ink-muted);border-top:2px solid var(--ink);padding-top:8px">Waiting for the first batch</span></sc-if>
+<sc-if value="{{hasBatches}}" hint-placeholder-val="{{ true }}"><div style="display:flex;justify-content:space-between;align-items:center;border-top:2px solid var(--ink);padding-top:8px"><span class="mono" style="font-size:13px;line-height:18px;font-weight:600">Batch {{batches}} released</span><span class="dd-chip dd-chip--mint">+0.60 USDC</span></div></sc-if>
+</div>
+<div style="display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:12px;margin-right:4px">
+<div style="background:var(--surface);border:2px solid var(--ink);border-radius:4px;padding:10px 12px"><span class="eb">Arriving</span><div class="mono" style="font-size:15px;line-height:24px;font-weight:700">+0.60 USDC / day</div></div>
+<div style="background:var(--mint);border:2px solid var(--ink);border-radius:4px;padding:10px 12px;color:#0E0F1A"><span class="eb" style="color:#0E0F1A">Received so far</span><div class="mono" style="font-size:15px;line-height:24px;font-weight:700">{{recvStr}} USDC</div></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px;margin-top:auto;align-items:center">
+<div style="position:relative;width:366px;height:64px;margin-left:-6px">
+<svg width="366" height="64" sc-camel-view-box="0 0 366 64" aria-hidden="true" style="position:absolute;left:0;top:0;pointer-events:none"><rect x="2" y="2" width="362" height="60" style="fill:none;stroke:var(--danger);stroke-width:4;opacity:.2"></rect><rect class="ringrect {{ringCls}}" sc-camel-path-length="100" x="2" y="2" width="362" height="60"></rect></svg>
+<button class="dd-btn dd-btn--danger" type="button" sc-camel-on-pointer-down="{{holdStart}}" sc-camel-on-pointer-up="{{holdEnd}}" sc-camel-on-pointer-leave="{{holdCancel}}" sc-camel-on-pointer-cancel="{{holdCancel}}" style="position:absolute;left:8px;top:8px;width:350px;height:48px;box-sizing:border-box;touch-action:none;user-select:none">Stop sharing</button>
+</div>
+<span style="font:400 13px/18px var(--font-sans);color:var(--ink-muted);text-align:center">{{holdHint}}</span>
+</div>
+</div>
+</sc-if>
+
+<!-- 7c Stopped -->
+<sc-if value="{{onStopped}}" hint-placeholder-val="{{ false }}">
+<div class="scr" style="padding:40px 16px 24px;display:flex;flex-direction:column;gap:18px">
+<div style="display:flex;gap:16px;align-items:center">
+<div style="width:56px;height:56px;background:var(--mint);border:2px solid var(--ink);box-shadow:4px 4px 0 var(--ink);display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="32" height="32" sc-camel-view-box="0 0 24 24" role="img" aria-label="Done" style="fill:none;stroke:var(--ink);stroke-width:3;stroke-linecap:square;stroke-linejoin:miter"><path d="M4 12.5 L9.5 18 L20 6.5"></path></svg></div>
+<div style="display:flex;flex-direction:column;gap:4px"><span class="eb">Grant {{grantShort}}</span><h1 style="margin:0;font:700 28px/32px var(--font-display);letter-spacing:-.01em">Sharing stopped</h1></div>
+</div>
+<p style="margin:0;font:500 17px/26px var(--font-sans)">Trinity Sleep Lab can no longer get new batches from your Deep Sleeper card.</p>
+<div style="background:var(--surface);border:2px solid var(--ink);border-radius:4px;box-shadow:4px 4px 0 var(--ink);margin-right:4px;display:flex;flex-direction:column">
+<div style="display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:2px solid var(--ink)"><span style="font:600 14px/20px var(--font-sans)">Future batches</span><span class="dd-chip">Stopped</span></div>
+<div style="display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:2px solid var(--ink)"><span style="font:600 14px/20px var(--font-sans)">Unreleased keys</span><span class="mono" style="font-size:14px;line-height:20px;font-weight:700">{{unreleased}} destroyed</span></div>
+<div style="display:flex;justify-content:space-between;align-items:center;padding:12px"><span style="font:600 14px/20px var(--font-sans)">Already decrypted</span><span class="mono" style="font-size:14px;line-height:20px;font-weight:700">{{batches}} can't be recalled</span></div>
+</div>
+<div style="background:var(--surface);border:2px solid var(--ink);border-radius:4px;padding:12px;margin-right:4px;display:flex;flex-direction:column;gap:6px">
+<span class="eb" style="color:var(--ink)">Revoke transaction</span>
+<span class="mono" style="font-size:14px;line-height:20px;font-weight:600">Tx {{revokeTx}}</span>
+<span style="color:var(--cobalt);font:600 15px/22px var(--font-sans);text-decoration:underline;text-underline-offset:3px;display:inline-flex;align-items:center;gap:6px">View on Solana Explorer ↗</span>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;margin-right:4px">
+<span class="dd-chip dd-chip--mint" style="align-self:flex-start">Erasure request sent</span>
+<span style="font:400 14px/20px var(--font-sans);color:var(--ink-muted)">We asked Trinity Sleep Lab to erase the batches it holds. Data already shared can't be recalled, so the lab decides.</span>
+</div>
+<button class="dd-btn dd-btn--primary" type="button" sc-camel-on-click="{{backToDeck}}" style="margin-top:auto;width:100%;box-sizing:border-box">Back to my deck</button>
+</div>
+</sc-if>
+
+<!-- Overlay: consent sheet -->
+<sc-if value="{{consentOn}}" hint-placeholder-val="{{ false }}">
+<div class="backdrop {{outCls}}" sc-camel-on-click="{{closeConsent}}"></div>
+<div class="sheetwrap {{outCls}}">
+<div class="dd-sheet" role="dialog" aria-label="Lend Deep Sleeper to Trinity Sleep Lab" style="box-sizing:border-box;padding:16px;gap:10px;border-left:0;border-right:0;border-bottom:0">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<span class="eb">Consent grant</span>
+<div style="display:flex;gap:8px;align-items:center"><span class="dd-chip">Pseudonymised</span><button type="button" aria-label="Close" sc-camel-on-click="{{closeConsent}}" class="dd-btn dd-btn--ghost" style="min-width:44px;padding:0"><svg width="18" height="18" sc-camel-view-box="0 0 24 24" aria-hidden="true" style="fill:none;stroke:var(--ink);stroke-width:3;stroke-linecap:square"><path d="M5 5 L19 19 M19 5 L5 19"></path></svg></button></div>
+</div>
+<h2 style="margin:0;font:700 20px/26px var(--font-display)">Lend Deep Sleeper to Trinity Sleep Lab</h2>
+<div class="dd-ai" style="gap:6px;min-height:118px">
+<span class="dd-label dd-ai__label">AI-generated summary</span>
+<sc-if value="{{summaryWait}}" hint-placeholder-val="{{ false }}"><div><div class="shimmer" style="width:100%"></div><div class="shimmer" style="width:88%"></div><div class="shimmer" style="width:64%"></div></div></sc-if>
+<sc-if value="{{summaryReady}}" hint-placeholder-val="{{ true }}"><p style="margin:0;font:500 15px/22px var(--font-sans)"><span class="line l1">A university sleep study gets one encrypted batch of your sleep data per day for 30 days.</span><span class="line l2">It keeps the data for 12 months.</span><span class="line l3">You can stop at any time. Batches already shared can't be recalled.</span></p></sc-if>
+</div>
+<dl class="dd-facts" style="margin:0">
+<div><dt>Access</dt><dd>30-day stream</dd></div>
+<div><dt>Access window</dt><dd>30 days</dd></div>
+<div><dt>Pays</dt><dd>0.60 USDC/day</dd></div>
+<div><dt>Retention</dt><dd>12 months</dd></div>
+<div style="grid-column:1 / -1;border-right:0"><dt>Ethics ref</dt><dd>TCD-24-118</dd></div>
+</dl>
+<div style="border:2px solid var(--ink);border-radius:4px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;background:var(--surface)">
+<span class="eb" style="color:var(--ink)">Researcher's full notice</span>
+<p style="margin:0;font:400 12px/17px var(--font-sans)">Trinity Sleep Lab asks to receive one pseudonymised, encrypted batch of your sleep data each day for 30 days, for a non-profit study of sleep and recovery. The data is kept for 12 months and then erased. Stopping sharing ends future batches; batches already shared can't be recalled. Ethics approval TCD-24-118. Contact for your rights: [DATA PROTECTION CONTACT].</p>
+</div>
+<div style="display:flex;justify-content:center;margin-top:2px">
+<button class="dd-btn dd-btn--primary cbtn {{cbtnCls}}" type="button" sc-camel-on-click="{{confirm}}" aria-label="Confirm and lend 30 days">
+<sc-if value="{{cIdle}}" hint-placeholder-val="{{ true }}"><span>Confirm and lend 30 days</span></sc-if>
+<sc-if value="{{cSpin}}" hint-placeholder-val="{{ false }}"><svg width="24" height="24" sc-camel-view-box="0 0 24 24" aria-hidden="true" style="fill:none;stroke:#FFFFFF;stroke-width:3;stroke-linecap:square"><path class="draw" d="M12 3 A9 9 0 1 1 3 12"></path></svg></sc-if>
+<sc-if value="{{cCheck}}" hint-placeholder-val="{{ false }}"><svg width="28" height="28" sc-camel-view-box="0 0 24 24" role="img" aria-label="Confirmed" style="fill:none;stroke:#FFFFFF;stroke-width:3;stroke-linecap:square;stroke-linejoin:miter"><path class="draw" d="M4 12.5 L9.5 18 L20 6.5"></path></svg></sc-if>
+</button>
+</div>
+</div>
+</div>
+</sc-if>
+
+<!-- Overlay: kill switch confirm sheet -->
+<sc-if value="{{killOn}}" hint-placeholder-val="{{ false }}">
+<div class="backdrop {{outCls}}"></div>
+<div class="sheetwrap {{outCls}}">
+<div class="dd-sheet" role="dialog" aria-label="Stop sharing with Trinity Sleep Lab" style="box-sizing:border-box;padding:20px 16px;gap:12px;border-left:0;border-right:0;border-bottom:0">
+<span class="eb">Confirm · Grant {{grantShort}}</span>
+<h2 style="margin:0;font:700 20px/26px var(--font-display)">Stop sharing with Trinity Sleep Lab?</h2>
+<p style="margin:0;font:600 14px/20px var(--font-sans)">Stops future access. Data already shared can't be recalled.</p>
+<div style="display:grid;grid-template-columns:8px minmax(0, 1fr);border:2px solid var(--ink);border-radius:4px;background:var(--surface)"><div style="background:var(--ink)"></div><div style="padding:10px 12px;display:flex;flex-direction:column;gap:2px"><span class="eb" style="color:var(--ink)">What stops</span><span style="font:400 14px/20px var(--font-sans)">No new batches are released to Trinity Sleep Lab from now on.</span></div></div>
+<div style="display:grid;grid-template-columns:8px minmax(0, 1fr);border:2px solid var(--ink);border-radius:4px;background:var(--surface)"><div style="background:var(--cobalt)"></div><div style="padding:10px 12px;display:flex;flex-direction:column;gap:2px"><span class="eb" style="color:var(--ink)">What is destroyed</span><span style="font:400 14px/20px var(--font-sans)">The keys for the {{unreleased}} batches not yet released. No one can decrypt them.</span></div></div>
+<div style="display:grid;grid-template-columns:8px minmax(0, 1fr);border:2px solid var(--ink);border-radius:4px;background:var(--surface-sunk)"><div style="background:var(--ink-muted)"></div><div style="padding:10px 12px;display:flex;flex-direction:column;gap:2px"><span class="eb" style="color:var(--ink)">What can't be recalled</span><span style="font:400 14px/20px var(--font-sans)">The {{batches}} batches already decrypted. Trinity Sleep Lab may keep them for up to 12 months. We send an erasure request on your behalf.</span></div></div>
+<div style="display:flex;gap:12px;margin-top:4px">
+<button class="dd-btn" type="button" sc-camel-on-click="{{keepSharing}}" style="flex-shrink:0">Keep sharing</button>
+<button class="dd-btn dd-btn--danger" type="button" sc-camel-on-click="{{confirmStop}}" style="flex-grow:1">Stop sharing</button>
+</div>
+</div>
+</div>
+</sc-if>
+
+<!-- Toast: USDC count-up -->
+<sc-if value="{{toastOn}}" hint-placeholder-val="{{ false }}">
+<div class="toast dd-toast {{toastCls}}" role="status"><span class="dd-toast__amt">+{{toastAmt}}</span><span style="font-size:14px;line-height:20px">USDC from Trinity Sleep Lab</span></div>
+</sc-if>
+
+<!-- Toast: rule notification -->
+<sc-if value="{{notifOn}}" hint-placeholder-val="{{ false }}">
+<div class="toast {{notifCls}}" role="alert" style="left:12px;right:12px;top:12px;background:var(--surface);border:2px solid var(--ink);border-radius:4px;box-shadow:6px 6px 0 var(--ink);padding:14px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;align-items:center"><span class="dd-chip dd-chip--mint">Rule accepted</span><span class="mono" style="font-size:13px;line-height:18px;color:var(--ink-muted)">just now</span></div>
+<span style="font:700 18px/24px var(--font-display)">Your rule accepted Trinity Sleep Lab</span>
+<dl class="dd-facts" style="margin:0"><div><dt>Access window</dt><dd>30 days</dd></div><div><dt>Pays</dt><dd>0.60 USDC/day</dd></div></dl>
+<button class="dd-btn dd-btn--danger" type="button" sc-camel-on-click="{{dismissNotif}}" style="width:100%;box-sizing:border-box">Stop sharing</button>
+</div>
+</sc-if>
+
+</div>
+
+<!-- RESEARCHER DESKTOP -->
+<div style="position:relative;width:1440px;height:900px;box-sizing:border-box;border:2px solid var(--ink);box-shadow:6px 6px 0 var(--ink);background:var(--paper);overflow:hidden;flex-shrink:0;display:flex;flex-direction:column">
+<div style="height:72px;flex-shrink:0;box-sizing:border-box;padding:0 48px;background:var(--surface);border-bottom:2px solid var(--ink);display:flex;align-items:center;justify-content:space-between">
+<div style="display:flex;align-items:center;gap:16px"><span style="font:800 18px/24px var(--font-display);letter-spacing:-.01em">Data Deck</span><span class="eb" style="color:var(--ink)">Researcher portal</span></div>
+<span class="dd-chip dd-chip--sun">Sample data</span>
+</div>
+<div style="display:flex;gap:40px;padding:36px 48px;align-items:flex-start">
+<div style="width:400px;flex-shrink:0;display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;flex-direction:column;gap:8px">
+<span class="eb">Grant {{grantShort}}</span>
+<h1 style="margin:0;font:700 30px/34px var(--font-display);letter-spacing:-.01em">Trinity Sleep Lab</h1>
+<span style="font:400 15px/22px var(--font-sans);color:var(--ink-muted)">Non-profit university · 30-day stream</span>
+</div>
+<div style="background:var(--surface);border:2px solid var(--ink);border-radius:6px;box-shadow:4px 4px 0 var(--ink);padding:20px;display:flex;flex-direction:column;gap:16px;box-sizing:border-box">
+<sc-if value="{{rOpen}}" hint-placeholder-val="{{ true }}"><span class="dd-chip" style="align-self:flex-start">Bounty open</span></sc-if>
+<sc-if value="{{rActive}}" hint-placeholder-val="{{ false }}"><span class="dd-chip dd-chip--mint" style="align-self:flex-start">Access active</span></sc-if>
+<sc-if value="{{revoked}}" hint-placeholder-val="{{ false }}"><span class="dd-chip dd-chip--danger" style="align-self:flex-start">Access revoked</span></sc-if>
+<span style="font:600 15px/22px var(--font-sans)">{{rStatusText}}</span>
+<dl class="dd-facts" style="margin:0">
+<div><dt>Batches</dt><dd>{{batches}} of 30</dd></div>
+<div><dt>Access</dt><dd>30-day stream</dd></div>
+<div><dt>Retention</dt><dd>12 months</dd></div>
+<div><dt>Ethics ref</dt><dd>TCD-24-118</dd></div>
+</dl>
+</div>
+<div style="background:var(--surface);border:2px solid var(--ink);border-radius:6px;box-shadow:4px 4px 0 var(--ink);padding:20px;display:flex;flex-direction:column;gap:8px;box-sizing:border-box">
+<span class="eb" style="color:var(--ink)">Participant</span>
+<span class="mono" style="font-size:14px;line-height:20px;font-weight:600">P-{{grantShort}}</span>
+<span style="font:400 14px/20px var(--font-sans);color:var(--ink-muted)">Pseudonymised: you see a grant ID, not a name.</span>
+</div>
+</div>
+<div style="flex-grow:1;min-width:0;display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;justify-content:space-between;align-items:baseline"><h2 style="margin:0;font:700 20px/26px var(--font-display)">Batches</h2><span class="mono" style="font-size:14px;line-height:20px;font-weight:600">{{batches}} received</span></div>
+<sc-if value="{{rEmpty}}" hint-placeholder-val="{{ true }}"><div style="border:2px dashed var(--ink);border-radius:6px;padding:32px;background:var(--surface-sunk);display:flex;flex-direction:column;gap:6px"><span style="font:700 20px/26px var(--font-display)">Waiting for a participant</span><span style="font:400 14px/20px var(--font-sans);color:var(--ink-muted)">Batches appear here, one encrypted batch per day, after the participant confirms.</span></div></sc-if>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="0">
+<div class="dd-batch rowin {{r.cls}}">
+<span class="dd-batch__n">Batch {{r.n}}</span>
+<span class="mono" style="font-size:14px;line-height:20px;color:{{r.color}}">{{r.data}}</span>
+<span style="display:flex;gap:8px"><span class="dd-chip">{{r.status}}</span><sc-if value="{{r.paid}}" hint-placeholder-val="{{ false }}"><span class="dd-chip dd-chip--mint">Paid 0.60</span></sc-if></span>
+</div>
+</sc-for>
+<sc-if value="{{revoked}}" hint-placeholder-val="{{ false }}">
+<div class="rowin" style="background:var(--surface-sunk);border:2px dashed var(--ink);border-radius:6px;padding:24px;display:grid;grid-template-columns:64px minmax(0, 1fr);gap:20px;align-items:center">
+<div style="width:64px;height:64px;background:var(--surface);border:2px solid var(--ink);display:flex;align-items:center;justify-content:center"><svg width="36" height="36" sc-camel-view-box="0 0 24 24" role="img" aria-label="Locked" style="fill:none;stroke:var(--danger);stroke-width:2.5;stroke-linecap:square;stroke-linejoin:miter"><rect x="4" y="11" width="16" height="10" class="draw lock"></rect><path class="draw lock" d="M8 11 V7 a4 4 0 0 1 8 0 V11"></path></svg></div>
+<div style="display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;gap:12px;align-items:center"><span class="dd-batch__n">Batch {{nextN}}</span><span class="dd-chip dd-chip--danger">Locked</span></div>
+<span class="line" style="font:700 20px/26px var(--font-display);animation-delay:200ms">Access revoked by participant</span>
+<span class="mono blurin" style="font-size:14px;line-height:20px;user-select:none" aria-hidden="true">Sleep 7h 21m · Deep 1h 44m · Efficiency 90%</span>
+<span style="font:400 14px/20px var(--font-sans);color:var(--ink-muted)">The keys for batches {{nextN}} to 30 are destroyed. The {{batches}} batches you already decrypted stay with you under your 12-month retention.</span>
+</div>
+</div>
+</sc-if>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script="" data-props="{&quot;$preview&quot;:{&quot;width&quot;:1970,&quot;height&quot;:1040}}">
+const PLAYER = 'demo-player'; // same default player as the Dashboard and /privacy
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.timers = [];
+    this.holdTimer = null;
+    this.armTimer = null;
+    this.state = this.fresh();
+  }
+  fresh() {
+    return {
+      screen: 'onboard', ageOk: false, deckMode: 'closed', dealt: false, why: false,
+      dTf: 'none', dTr: 'none', dOp: 0,
+      overlay: 'none', sheetOut: false, summaryReady: false, confirmPhase: 0,
+      batches: 0, rows: [], toast: 'none', toastAmt: '0.00',
+      holding: false, armed: false, revoked: false, notif: 'none', afterStop: false,
+      grantId: null, apiNote: '', revokeTx: ''
+    };
+  }
+  later(fn, ms) { const id = setTimeout(fn, ms); this.timers.push(id); return id; }
+  clearAll() {
+    this.timers.forEach((t) => clearTimeout(t)); this.timers = [];
+    if (this.holdTimer) { clearTimeout(this.holdTimer); this.holdTimer = null; }
+    if (this.armTimer) { clearTimeout(this.armTimer); this.armTimer = null; }
+  }
+  componentWillUnmount() { this.clearAll(); }
+
+  closeOverlay(after) {
+    this.setState({ sheetOut: true });
+    this.later(() => { this.setState({ overlay: 'none', sheetOut: false }); if (after) after(); }, 260);
+  }
+  // ---- Data Deck API wiring: the prototype's flow now drives the real backend ----
+  async api(path, body) {
+    const res = await fetch(path, body === undefined ? {} : {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body)
+    });
+    return { status: res.status, body: await res.json().catch(() => ({})) };
+  }
+  async lend() {
+    const cards = await this.api('/api/cards');
+    const card = (cards.body.cards || []).find((c) => c.name === 'Deep Sleeper');
+    if (!card) throw new Error('No Deep Sleeper card in the sample data');
+    const g = await this.api('/api/grants', { player: PLAYER, bountyId: 'b-trinity-sleep', cardId: card.id });
+    if (g.status !== 201) throw new Error(g.body.error || 'grant failed (' + g.status + ')');
+    return g.body.grantId;
+  }
+  async decryptBatch(grantId, idx, keyB64) {
+    const list = await this.api('/api/batches/' + grantId);
+    const b = (Array.isArray(list.body) ? list.body : []).find((x) => x.batch === idx);
+    if (!b) return null;
+    const bytes = (v) => Uint8Array.from(atob(v), (c) => c.charCodeAt(0));
+    const key = await crypto.subtle.importKey('raw', bytes(keyB64), 'AES-GCM', false, ['decrypt']);
+    const data = new Uint8Array([...bytes(b.ciphertext), ...bytes(b.authTag)]);
+    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytes(b.iv) }, key, data);
+    const rows = JSON.parse(new TextDecoder().decode(plain));
+    return { cipher: b.ciphertext.slice(0, 19), text: rows.map((r) => r.date + ' · Sleep ' + r.sleep_hours + 'h · Deep ' + r.deep_sleep_min + ' min').join(' / ') };
+  }
+  async addBatch(n) {
+    const grantId = this.state.grantId;
+    if (!grantId || this.state.revoked) return;
+    const k = await this.api('/api/keys/' + grantId + '/' + (n - 1));
+    if (k.status !== 200) {
+      this.setState({ apiNote: 'Key API refused batch ' + n + ': ' + (k.body.error || k.status) + ' (' + k.status + ')' });
+      return;
+    }
+    this.setState((s) => ({ batches: n, rows: s.rows.concat([{ n: n, st: 'decrypting', text: '' }]), toast: 'in', toastAmt: '0.00' }));
+    const dec = await this.decryptBatch(grantId, n - 1, k.body.key).catch(() => null);
+    this.later(() => this.setState((s) => ({ rows: s.rows.map((r) => (r.n === n ? { n: r.n, st: 'decrypted', text: dec ? dec.text : 'Decrypted' } : r)) })), 600);
+    for (let i = 1; i <= 8; i++) {
+      this.later(() => this.setState({ toastAmt: (0.6 * i / 8).toFixed(2) }), 250 + i * 50);
+    }
+    this.later(() => this.setState({ toast: 'out' }), 1800);
+    this.later(() => this.setState({ toast: 'none' }), 2070);
+  }
+  startStream() {
+    // One batch per demo day (1 day = 10 s), as the server releases them.
+    for (let i = 0; i < 30; i++) this.later(() => this.addBatch(i + 1), 500 + i * 10000);
+  }
+
+  renderVals() {
+    const s = this.state;
+    const self = this;
+
+    const openDetail = () => {
+      const src = document.getElementById('cardDeep');
+      let r = null;
+      if (src) { const b = src.getBoundingClientRect(); r = { x: b.left, y: b.top, w: b.width, h: b.height }; }
+      self.setState({ screen: 'detail', dealt: true, dTf: 'none', dTr: 'none', dOp: 0, why: false });
+      self.later(() => {
+        const dst = document.getElementById('detailCard');
+        if (r && dst) {
+          const b = dst.getBoundingClientRect();
+          const dx = (r.x + r.w / 2) - (b.left + b.width / 2);
+          const dy = (r.y + r.h / 2) - (b.top + b.height / 2);
+          self.setState({ dTf: 'translate(' + dx + 'px, ' + dy + 'px) scale(' + (r.w / b.width) + ', ' + (r.h / b.height) + ')', dTr: 'none', dOp: 1 });
+          self.later(() => self.setState({ dTf: 'none', dTr: 'transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1)' }), 50);
+        } else {
+          self.setState({ dTf: 'none', dTr: 'none', dOp: 1 });
+        }
+      }, 30);
+    };
+
+    const openConsent = () => {
+      self.setState({ overlay: 'consent', sheetOut: false, summaryReady: false, confirmPhase: 0 });
+      self.later(() => self.setState({ summaryReady: true }), 600);
+    };
+    const confirm = () => {
+      if (s.confirmPhase !== 0) return;
+      self.setState({ confirmPhase: 1, apiNote: '' });
+      self.lend().then((grantId) => {
+        self.setState({ confirmPhase: 2, grantId: grantId });
+        self.later(() => { self.setState({ sheetOut: true }); }, 500);
+        self.later(() => {
+          self.setState({ overlay: 'none', sheetOut: false, screen: 'grant', batches: 0, rows: [], revoked: false });
+          self.startStream();
+        }, 760);
+      }).catch((e) => self.setState({ confirmPhase: 0, apiNote: 'Could not lend: ' + e.message }));
+    };
+
+    const holdStart = () => {
+      if (self.holdTimer) return;
+      self.holdFired = false;
+      self.setState({ holding: true });
+      self.holdTimer = setTimeout(() => {
+        self.holdTimer = null;
+        self.holdFired = true;
+        self.setState({ holding: false, armed: false, overlay: 'kill', sheetOut: false });
+      }, 1200);
+    };
+    const holdEnd = () => {
+      if (self.holdFired) { self.holdFired = false; return; }
+      if (self.holdTimer) { clearTimeout(self.holdTimer); self.holdTimer = null; }
+      self.setState({ holding: false });
+      if (self.state.armed) {
+        self.setState({ armed: false, overlay: 'kill', sheetOut: false });
+      } else {
+        self.setState({ armed: true });
+        if (self.armTimer) clearTimeout(self.armTimer);
+        self.armTimer = setTimeout(() => self.setState({ armed: false }), 3000);
+      }
+    };
+    const holdCancel = () => {
+      if (self.holdTimer) { clearTimeout(self.holdTimer); self.holdTimer = null; }
+      if (self.state.holding) self.setState({ holding: false });
+    };
+
+    const confirmStop = () => {
+      if (s.sheetOut) return;
+      self.clearAll();
+      self.setState({ sheetOut: true });
+      self.later(() => self.setState({ overlay: 'none', sheetOut: false, screen: 'stopped', toast: 'none', afterStop: true }), 260);
+      const grantId = s.grantId;
+      const next = s.batches + 1;
+      self.api('/api/revoke', { player: PLAYER }).then((r) => { self.setState({ revokeTx: r.body.tx || '' }); return grantId; }).then((grantId) => grantId ? self.api('/api/keys/' + grantId + '/' + (next - 1)) : null).then((k) => {
+        self.setState({ revoked: true, apiNote: k ? 'Key API refused batch ' + next + ': ' + (k.body.error || '') + ' (' + k.status + ')' : '' });
+      }).catch(() => self.setState({ revoked: true }));
+    };
+
+    const backToDeck = () => {
+      self.setState({ screen: 'deck', deckMode: 'open', dealt: true, notif: 'none' });
+      self.later(() => self.setState({ notif: 'in' }), 700);
+      self.later(() => self.setState({ notif: 'out' }), 4700);
+      self.later(() => self.setState({ notif: 'none' }), 4970);
+    };
+
+    // tracker
+    let step = 0;
+    if (s.screen === 'onboard') step = 0;
+    else if (s.screen === 'deck') step = s.afterStop ? 9 : 1;
+    else if (s.screen === 'detail') step = 2;
+    else if (s.screen === 'bounties') step = 3;
+    else if (s.screen === 'grant') step = 6;
+    else if (s.screen === 'stopped') step = 8;
+    if (s.overlay === 'consent') step = s.confirmPhase === 0 ? 4 : 5;
+    if (s.overlay === 'kill') step = 7;
+    if (s.notif !== 'none') step = 9;
+    const labels = ['Onboarding', 'My Deck', 'Card detail', 'Bounty board', 'Consent sheet', 'Confirm', 'Researcher portal', 'Kill switch', 'Access revoked', 'Notification'];
+    const steps = labels.map((label, i) => ({
+      n: String(i + 1), label: label,
+      bg: i === step ? '#2B3BFF' : (i < step ? '#E6E8F0' : '#FFFFFF'),
+      fg: i === step ? '#FFFFFF' : '#0E0F1A'
+    }));
+
+    const cardDefs = [
+      { name: 'Early Bird', word: 'Common', cls: 'dd-card--common', spark: 'Wake times, last 7 days', bars: [60, 80, 70, 90, 85, 40, 50], isEarly: true },
+      { name: 'Step Starter', word: 'Common', cls: 'dd-card--common', spark: 'Steps, last 7 days', bars: [40, 55, 50, 70, 65, 85, 90], isStep: true },
+      { name: 'Deep Sleeper', word: 'Rare', cls: 'dd-card--rare', spark: 'Sleep hours, last 7 days', bars: [82, 88, 84, 90, 86, 95, 92], isDeep: true },
+      { name: 'Calm Heart', word: 'Rare', cls: 'dd-card--rare', spark: 'Resting heart rate, last 7 days', bars: [78, 70, 66, 62, 58, 56, 55], isCalm: true },
+      { name: 'Marathon Week', word: 'Epic', cls: 'dd-card--epic', spark: 'Distance, last 7 days', bars: [70, 95, 60, 100, 80, 90, 75], isMarathon: true },
+      { name: 'Perfect Week', word: 'Legendary', cls: 'dd-card--legendary', spark: 'Combined score, last 7 days', bars: [90, 95, 92, 100, 94, 97, 99], isPerfect: true }
+    ];
+    const cards = cardDefs.map((c, i) => Object.assign({}, c, { domId: c.isDeep ? 'cardDeep' : 'card' + i, extra: c.isPerfect ? 'legend' : '' }));
+
+    const noop = () => {};
+    const bounties = [
+      { name: 'Trinity Sleep Lab', org: 'Non-profit university', match: true, cls: 'is-match', card: 'Deep Sleeper', access: '30-day stream', window: '30 days', kept: '12 months', ethics: 'TCD-24-118', price: '0.60', unit: 'USDC/day', go: openConsent },
+      { name: 'Heart Health AI', org: 'Commercial · manual only', match: false, cls: '', card: 'Calm Heart, 2 weeks', access: '24-hour snapshot', window: '24 hours', kept: '6 months', ethics: '[ETHICS REF]', price: '3.00', unit: 'USDC once', go: noop },
+      { name: '[Researcher name]', org: 'Non-profit hospital', match: false, cls: '', card: 'Marathon Week', access: 'Single query', window: 'One query', kept: '3 months', ethics: '[ETHICS REF]', price: '1.20', unit: 'USDC once', go: noop }
+    ];
+
+    const cells = [];
+    for (let i = 0; i < 30; i++) cells.push({ bg: i < s.batches ? '#12B87A' : '#FFFFFF' });
+
+    const rows = s.rows.map((r) => {
+      const done = r.st === 'decrypted';
+      const muted = s.revoked;
+      return {
+        n: r.n,
+        status: done ? 'Decrypted' : 'Decrypting',
+        paid: done,
+        data: done ? r.text : 'a9f3 7c21 e08b 5d47 3b1c …',
+        color: muted ? '#4A4E63' : (done ? '#0E0F1A' : '#4A4E63'),
+        cls: muted ? 'muted' : ''
+      };
+    });
+
+    const summaryWait = s.overlay === 'consent' && !s.summaryReady;
+    const rActive = s.batches > 0 || s.screen === 'grant';
+    const rOpen = !rActive && !s.revoked && s.screen !== 'stopped';
+    const holdHint = s.armed ? 'Tap again to stop, or press and hold.' : 'Press and hold to stop. Stops future access.';
+
+    return {
+      steps, cards, bounties, cells, rows,
+      restart: () => { self.clearAll(); self.holdFired = false; self.setState(self.fresh()); self.api('/api/demo/reset', {}); },
+      onOnboard: s.screen === 'onboard', ageOk: s.ageOk, noAge: !s.ageOk,
+      toggleAge: () => self.setState((st) => ({ ageOk: !st.ageOk })),
+      goDeck: () => self.setState({ screen: 'deck', deckMode: 'closed' }),
+      onDeck: s.screen === 'deck', deckClosed: s.deckMode === 'closed', deckOpen: s.deckMode === 'open',
+      gridCls: s.dealt ? '' : 'dealgrid',
+      openPack: () => self.setState({ deckMode: 'open' }),
+      openDetail,
+      onDetail: s.screen === 'detail', dOp: s.dOp, dTf: s.dTf, dTr: s.dTr,
+      backToDeckPlain: () => self.setState({ screen: 'deck', deckMode: 'open', dealt: true }),
+      why: s.why, whySign: s.why ? '−' : '+',
+      toggleWhy: () => self.setState((st) => ({ why: !st.why })),
+      toBounties: () => self.setState({ screen: 'bounties' }),
+      onBounties: s.screen === 'bounties' || (s.screen === 'grant' ? false : false),
+      onGrant: s.screen === 'grant',
+      batches: s.batches, noBatches: s.batches === 0, hasBatches: s.batches > 0,
+      recvStr: (s.batches * 0.6).toFixed(2),
+      unreleased: 30 - s.batches,
+      ringCls: s.holding ? 'on' : '',
+      holdHint,
+      holdStart, holdEnd, holdCancel,
+      onStopped: s.screen === 'stopped',
+      backToDeck,
+      consentOn: s.overlay === 'consent',
+      killOn: s.overlay === 'kill',
+      outCls: s.sheetOut ? 'out' : '',
+      closeConsent: () => { if (s.confirmPhase === 0 && !s.sheetOut) self.closeOverlay(); },
+      summaryWait, summaryReady: s.summaryReady,
+      confirm,
+      cbtnCls: s.confirmPhase > 0 ? 'morph' : '',
+      cIdle: s.confirmPhase === 0, cSpin: s.confirmPhase === 1, cCheck: s.confirmPhase === 2,
+      keepSharing: () => { if (!s.sheetOut) self.closeOverlay(); },
+      confirmStop,
+      toastOn: s.toast !== 'none', toastCls: s.toast === 'out' ? 'out' : '', toastAmt: s.toastAmt,
+      notifOn: s.notif !== 'none', notifCls: s.notif === 'out' ? 'out' : '',
+      dismissNotif: () => self.setState({ notif: 'out' }),
+      rOpen, rActive: rActive && !s.revoked, revoked: s.revoked,
+      rStatusText: s.revoked ? 'The participant stopped sharing. No further batches will arrive.' + (s.apiNote ? ' ' + s.apiNote + '.' : '') : (rActive ? 'Batches arrive once a day and decrypt on your side.' : 'A participant can accept this bounty from their deck.'),
+      rEmpty: s.rows.length === 0 && !s.revoked,
+      revokeTx: s.revokeTx || '[REVOKE TX ID]',
+      grantShort: s.grantId ? s.grantId.slice(0, 4) : '7f3a',
+      nextN: s.batches + 1
+    };
+  }
+}
+</script>
+
+
+</body></html>
