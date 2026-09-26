@@ -11,6 +11,8 @@ vi.mock("@/lib/grants", async (importOriginal) => ({
 const { POST } = await import("@/app/api/revoke/route");
 const { erasureLog } = await import("../grants");
 const { releaseKey, sealBatches } = await import("../vault");
+const { DEMO_RULE } = await import("../rules");
+const { getRules, saveRuleset } = await import("../rulesStore");
 
 let n = 0;
 function onChain(overrides: Partial<OnChainGrant> = {}): OnChainGrant {
@@ -50,6 +52,17 @@ describe("POST /api/revoke with a wallet-signed tx", () => {
     expect(erasureLog.filter((e) => e.grantId === g.grantId)).toEqual([
       expect.objectContaining({ grantId: g.grantId, researcher: "researcher-1", revokeTx: "sig-1" }),
     ]);
+  });
+
+  it("turns off auto-accept only when a revoke is verified", async () => {
+    const future = new Date(Date.now() + 30 * 86400_000).toISOString().slice(0, 10);
+    expect(saveRuleset("player-1", { ...DEMO_RULE, expiresAt: future }).errors).toEqual([]);
+    const active = onChain({ status: "Active", revokedAt: null });
+    await post({ player: "player-1", tx: "sig-x", grantIds: [active.grantId] });
+    expect(getRules("player-1")?.active).toBe(true);
+
+    await post({ player: "player-1", tx: "sig-y", grantIds: [onChain().grantId] });
+    expect(getRules("player-1")?.active).toBe(false);
   });
 
   it("logs each grant once when the kill switch is sent twice", async () => {

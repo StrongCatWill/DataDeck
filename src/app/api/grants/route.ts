@@ -3,7 +3,6 @@ import { batchesFor } from "@/lib/batches";
 import { getBounty } from "@/lib/bounties";
 import { loadSampleRows } from "@/lib/csv";
 import { effectiveStatus, grantBackend } from "@/lib/grants";
-import { DEMO_RULE, matches } from "@/lib/rules";
 import { rememberGrant } from "@/lib/solana/grantIndex";
 import type { Bounty, OnChainGrant } from "@/lib/types";
 import { getBatches, sealBatches } from "@/lib/vault";
@@ -15,22 +14,17 @@ export async function GET(req: Request) {
   return NextResponse.json(await grantBackend().listGrants(player));
 }
 
-// POST /api/grants { player, bountyId, cardId, auto?, grantId? }
-// Manual trade after the consent sheet's Confirm, or auto-accept via the rule delegate.
+// POST /api/grants { player, bountyId, cardId, grantId? }
+// Manual trade after the consent sheet's Confirm. Auto-accept goes through POST /api/auto-accept.
 // With grantId: the player's wallet already signed create_grant (or the dd:grant memo); the server
 // verifies that grant on-chain, remembers its off-chain context and seals its batches.
 export async function POST(req: Request) {
-  const { player, bountyId, cardId, auto, grantId } = await req.json();
+  const { player, bountyId, cardId, grantId } = await req.json();
   const bounty = getBounty(bountyId);
   if (!player || !bounty || !cardId) return NextResponse.json({ error: "player, bountyId, cardId required" }, { status: 400 });
   if (grantId) return recordSignedGrant(grantId, player, bounty, cardId);
 
-  // TODO(role C): load the player's saved rulesets instead of the demo rule.
-  if (auto && !matches(DEMO_RULE, bounty)) {
-    return NextResponse.json({ error: "Bounty does not match an auto-accept rule" }, { status: 403 });
-  }
-
-  const grant = await grantBackend().createGrant({ player, bountyId, cardId, rule: auto ? DEMO_RULE : undefined });
+  const grant = await grantBackend().createGrant({ player, bountyId, cardId });
   sealBatches(grant.grantId, batchesFor(bounty.accessType, loadSampleRows()));
   return NextResponse.json(grant, { status: 201 });
 }
