@@ -1,5 +1,6 @@
 import { getBounty } from "./bounties";
-import { randomGrantId, saltedHash, sha256Hex } from "./hash";
+import { randomGrantId, saltedHash } from "./hash";
+import { ruleHash } from "./rules";
 import { anchorBackend } from "./solana/anchorGrants";
 import { memoBackend } from "./solana/memoGrants";
 import type { AccessType, ErasureRequest, GrantStatus, GrantView, OnChainGrant, Ruleset } from "./types";
@@ -68,7 +69,7 @@ const mockBackend: GrantBackend = {
       pricePerDay: Math.round(bounty.priceUsdc * 1_000_000),
       status: "Active",
       auto: Boolean(rule),
-      ruleHash: rule ? sha256Hex(JSON.stringify(rule)) : null,
+      ruleHash: rule ? ruleHash(rule) : null,
       revokedAt: null,
       bountyId,
       cardId,

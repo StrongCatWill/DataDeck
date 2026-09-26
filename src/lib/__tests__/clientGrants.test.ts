@@ -2,8 +2,7 @@ import { Keypair, type Connection, type Transaction } from "@solana/web3.js";
 import { beforeAll, describe, expect, it } from "vitest";
 import { getBounty } from "../bounties";
 import { enableAutoAccept, lendCard, stopSharing, type WalletLike } from "../solana/clientGrants";
-import { DEMO_RULE } from "../rules";
-import { sha256Hex } from "../hash";
+import { DEMO_RULE, ruleHash as serverRuleHash } from "../rules";
 import { parseMemo } from "../solana/codec";
 import { MEMO_PROGRAM_ID } from "../solana/grantTx";
 
@@ -123,7 +122,7 @@ describe("enableAutoAccept", () => {
   it("memo mode: player signs dd:rules with the server's rule hash", async () => {
     const h = harness();
     const { ruleHash } = await enableAutoAccept(DEMO_RULE, { ...h.deps, mode: "memo" });
-    expect(ruleHash).toBe(sha256Hex(JSON.stringify(DEMO_RULE))); // same hash the server stores on auto grants
+    expect(ruleHash).toBe(serverRuleHash(DEMO_RULE)); // same hash the server stores on auto grants
     expect(parseMemo(memoText(h.sent[0]))).toEqual({
       kind: "rules",
       delegate,

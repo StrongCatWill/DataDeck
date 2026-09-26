@@ -2,7 +2,8 @@ import type { Connection, ConfirmedSignatureInfo } from "@solana/web3.js";
 import { PublicKey, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
 import { getBounty } from "../bounties";
 import type { GrantBackend } from "../grants";
-import { saltedHash, sha256Hex } from "../hash";
+import { saltedHash } from "../hash";
+import { ruleHash } from "../rules";
 import type { GrantView, OnChainGrant } from "../types";
 import { connection, keypairFromEnv, withContext } from "./anchorGrants";
 import { parseRpcMemoField, type DdMemo, type GrantMemo } from "./codec";
@@ -155,7 +156,7 @@ export const memoBackend: GrantBackend = {
       researcher,
       bountyHash: saltedHash(bounty.id).hash,
       player,
-      ruleHash: sha256Hex(JSON.stringify(rule)),
+      ruleHash: ruleHash(rule),
     });
     await sendAndConfirmTransaction(connection(), new Transaction().add(ix), [delegate]);
     rememberGrant(grantId, { player, bountyId, cardId });

@@ -161,7 +161,7 @@ export interface RevokeResponse {
 
 /**
  * Lets the server's rule delegate open grants for this player under one ruleset, until the ruleset expires.
- * The rule hash matches the server's sha256(JSON.stringify(rule)), so each auto grant proves which rule created it.
+ * The rule hash matches the server's ruleHash() in rules.ts (browser-safe copy: rules.ts uses node:crypto), so each auto grant proves which rule created it.
  */
 export async function enableAutoAccept(rule: Ruleset, deps: Deps): Promise<{ tx?: string; ruleHash: string }> {
   const mode = deps.mode ?? clientGrantMode();
