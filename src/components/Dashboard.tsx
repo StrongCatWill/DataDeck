@@ -1,22 +1,60 @@
 "use client";
 
-import { useWallet } from "@solana/wallet-adapter-react";
-import { useCallback, useEffect, useState } from "react";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ORG_LABEL, collectionSlots, packsByWeek, priceLabel, type CollectionSlot } from "@/lib/deck";
+import { lendCard, stopSharing as stopSharingTx } from "@/lib/solana/clientGrants";
 import type { Bounty, Card, GrantView } from "@/lib/types";
+import { CardDetail } from "./CardDetail";
+import { ConsentSheet } from "./ConsentSheet";
+import { Deck } from "./Deck";
+import { PackOpening, type Reveal } from "./PackOpening";
 import { WalletButton } from "./WalletButton";
 
-const ORG_LABEL: Record<Bounty["orgType"], string> = {
-  non_profit_university: "Non-profit university",
-  non_profit: "Non-profit",
-  commercial: "Commercial",
-};
+const OPENED_KEY = "dd:packs-opened";
+
+function loadOpened(): Set<number> {
+  try {
+    const weeks = JSON.parse(localStorage.getItem(OPENED_KEY) ?? "[]");
+    return new Set(Array.isArray(weeks) ? weeks.filter((w) => typeof w === "number") : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveOpened(opened: Set<number>) {
+  try {
+    localStorage.setItem(OPENED_KEY, JSON.stringify([...opened]));
+  } catch {}
+}
+
+const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 export function Dashboard({ cards, bounties }: { cards: Card[]; bounties: Bounty[] }) {
-  const { publicKey } = useWallet();
-  const player = publicKey?.toBase58() ?? "demo-player";
+  const wallet = useWallet();
+  const { connection } = useConnection();
+  const player = wallet.publicKey?.toBase58() ?? "demo-player";
   const [grants, setGrants] = useState<GrantView[]>([]);
-  const [consentFor, setConsentFor] = useState<Bounty | null>(null);
+  const [consentFor, setConsentFor] = useState<{ bounty: Bounty; cardId: string } | null>(null);
+  const [detailFor, setDetailFor] = useState<CollectionSlot | null>(null);
   const [killResult, setKillResult] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const busy = useRef(false);
+
+  // Packs: opened weeks persist per browser; a reveal in progress does not.
+  const packs = useMemo(() => packsByWeek(cards), [cards]);
+  const [opened, setOpened] = useState<Set<number>>(new Set());
+  const [reveal, setReveal] = useState<Reveal | null>(null);
+  useEffect(() => setOpened(loadOpened()), []);
+
+  const revealed = useMemo(
+    () =>
+      packs.flatMap((p) =>
+        opened.has(p.week) ? p.cards : reveal?.week === p.week ? p.cards.slice(0, reveal.shown) : [],
+      ),
+    [packs, opened, reveal],
+  );
+  const slots = useMemo(() => collectionSlots(revealed), [revealed]);
 
   const refresh = useCallback(async () => {
     const res = await fetch(`/api/grants?player=${player}`);
@@ -28,20 +66,57 @@ export function Dashboard({ cards, bounties }: { cards: Card[]; bounties: Bounty
   }, [refresh]);
 
   const active = grants.filter((g) => g.status === "Active" && g.expiresAt * 1000 > Date.now());
-  const cardFor = (b: Bounty) => cards.find((c) => c.name === b.cardWanted);
+  const lendingCardIds = new Set(active.map((g) => g.cardId));
+  const cardFor = (b: Bounty) => revealed.find((c) => c.name === b.cardWanted);
+
+  function finishPack() {
+    if (!reveal) return;
+    const next = new Set(opened).add(reveal.week);
+    setOpened(next);
+    saveOpened(next);
+    setReveal(null);
+  }
+
+  function resealPacks() {
+    setOpened(new Set());
+    saveOpened(new Set());
+  }
+
+  async function confirmLend() {
+    if (!consentFor || busy.current) return;
+    busy.current = true;
+    const { bounty, cardId } = consentFor;
+    try {
+      const { tx } = await lendCard(bounty, cardId, { wallet, connection });
+      setNotice(`You are now lending ${bounty.cardWanted} to ${bounty.researcher}.${tx ? ` Tx ${tx}` : ""}`);
+    } catch (e) {
+      setNotice(`Could not lend: ${errorText(e)}`);
+    } finally {
+      busy.current = false;
+      setConsentFor(null);
+      refresh();
+    }
+  }
 
   async function stopSharing() {
-    const res = await fetch("/api/revoke", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ player }),
-    });
-    const r = await res.json();
-    setKillResult(
-      `Stopped ${r.revoked.length} grant(s) in tx ${r.tx}. ${r.keysDestroyed} undelivered batch keys destroyed. ` +
-        `An erasure request was logged to each researcher.`,
-    );
-    refresh();
+    if (busy.current) return;
+    busy.current = true;
+    try {
+      const { tx, response } = await stopSharingTx(
+        active.map((g) => g.grantId),
+        { wallet, connection },
+      );
+      const r = response as { revoked?: string[]; keysDestroyed?: number };
+      setKillResult(
+        `Stopped ${r.revoked?.length ?? 0} grant(s) in tx ${tx}. ${r.keysDestroyed ?? 0} undelivered batch keys destroyed. ` +
+          `An erasure request was logged to each researcher.`,
+      );
+    } catch (e) {
+      setKillResult(`Could not stop sharing: ${errorText(e)}`);
+    } finally {
+      busy.current = false;
+      refresh();
+    }
   }
 
   return (
@@ -51,24 +126,26 @@ export function Dashboard({ cards, bounties }: { cards: Card[]; bounties: Bounty
         <WalletButton />
       </header>
       <p className="muted">Devnet demo with sample data. Lend data by the day and keep the off switch.</p>
+      {notice && (
+        <p className="card notice" role="status">
+          {notice}{" "}
+          <button type="button" className="linkish" onClick={() => setNotice(null)}>
+            Dismiss
+          </button>
+        </p>
+      )}
 
-      <h2>Your deck</h2>
-      {/* TODO(role B): pack-opening animation, cosmetic levels, set completion. */}
-      <div className="grid">
-        {cards.map((c) => {
-          const lending = active.find((g) => g.cardId === c.id);
-          return (
-            <div className="card" key={c.id}>
-              <strong>{c.name}</strong> <span className="badge">{c.rarity}</span>
-              {lending && <span className="badge">lending</span>}
-              <div className="muted">Week {c.week} · Level {c.level}</div>
-              <p className="muted">
-                <b>Why this card?</b> {c.whyThisCard}
-              </p>
-            </div>
-          );
-        })}
-      </div>
+      <PackOpening
+        packs={packs}
+        opened={opened}
+        reveal={reveal}
+        onOpen={(week) => setReveal({ week, shown: 1 })}
+        onRevealNext={() => setReveal((r) => r && { ...r, shown: r.shown + 1 })}
+        onFinish={finishPack}
+        onReseal={resealPacks}
+      />
+
+      <Deck slots={slots} lendingCardIds={lendingCardIds} onSelect={setDetailFor} />
 
       <h2>Bounty board</h2>
       <div className="grid">
@@ -83,11 +160,11 @@ export function Dashboard({ cards, bounties }: { cards: Card[]; bounties: Bounty
                 <tr><th>Wants</th><td>{b.cardWanted}{b.weeksWanted > 1 ? `, ${b.weeksWanted} weeks` : ""}</td></tr>
                 <tr><th>Access</th><td>{b.accessWindowLabel}</td></tr>
                 <tr><th>Retention</th><td>{b.retention}</td></tr>
-                <tr><th>Pays</th><td>{b.priceUsdc} USDC {b.priceUnit === "per_day" ? "per day" : "once"}</td></tr>
+                <tr><th>Pays</th><td>{priceLabel(b)}</td></tr>
               </tbody>
             </table>
             <p>
-              <button disabled={!cardFor(b)} onClick={() => setConsentFor(b)}>
+              <button disabled={!cardFor(b)} onClick={() => setConsentFor({ bounty: b, cardId: cardFor(b)!.id })}>
                 {cardFor(b) ? "Review and lend" : "Card not in deck"}
               </button>
             </p>
@@ -128,54 +205,22 @@ export function Dashboard({ cards, bounties }: { cards: Card[]; bounties: Bounty
         study topics stay in the app.
       </p>
 
-      {consentFor && (
-        <ConsentSheet
-          bounty={consentFor}
-          onCancel={() => setConsentFor(null)}
-          onConfirm={async () => {
-            await fetch("/api/grants", {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify({ player, bountyId: consentFor.id, cardId: cardFor(consentFor)!.id }),
-            });
-            setConsentFor(null);
-            refresh();
+      {detailFor && (
+        <CardDetail
+          slot={detailFor}
+          bounties={bounties}
+          activeGrants={active}
+          onClose={() => setDetailFor(null)}
+          onLend={(bounty, card) => {
+            setDetailFor(null);
+            setConsentFor({ bounty, cardId: card.id });
           }}
         />
       )}
+
+      {consentFor && (
+        <ConsentSheet bounty={consentFor.bounty} onCancel={() => setConsentFor(null)} onConfirm={confirmLend} />
+      )}
     </main>
-  );
-}
-
-// Layered notice: labelled AI summary on top, full notice below, explicit Confirm (FR-3).
-function ConsentSheet({ bounty, onCancel, onConfirm }: { bounty: Bounty; onCancel: () => void; onConfirm: () => void }) {
-  const [summary, setSummary] = useState<{ label: string; summary: string } | null>(null);
-  useEffect(() => {
-    fetch("/api/explain", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ bountyId: bounty.id }),
-    })
-      .then((r) => r.json())
-      .then(setSummary);
-  }, [bounty.id]);
-
-  return (
-    <div className="sheet">
-      <div>
-        <h3>Lend {bounty.cardWanted} to {bounty.researcher}</h3>
-        <div className="ai">
-          <div className="badge">{summary?.label ?? "AI-generated summary"}</div>
-          <p>{summary?.summary ?? "Loading…"}</p>
-        </div>
-        <h4>Full notice</h4>
-        <p className="muted">{bounty.fullNotice}</p>
-        <p className="muted">
-          Access: {bounty.accessWindowLabel}. Retention: {bounty.retention}. Your data is pseudonymised: your name is removed, but daily data like this could still be linked back to you.
-        </p>
-        <button onClick={onConfirm}>Confirm and lend</button>{" "}
-        <button className="secondary" onClick={onCancel}>Cancel</button>
-      </div>
-    </div>
   );
 }

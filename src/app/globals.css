@@ -37,3 +37,62 @@ button.danger { background: var(--danger); }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 td, th { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); }
 .locked { border-color: var(--danger); color: var(--danger); }
+
+/* ---------- Game layer: packs, card tiles, deck ---------- */
+:root {
+  --common: #7a8580;
+  --rare: #2f6fb3;
+  --epic: #7b3fb0;
+  --legendary: #b8860b;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --common: #9aa5a0; --rare: #6aa8ea; --epic: #b98ae6; --legendary: #e2b64a; }
+}
+.linkish { background: none; color: var(--accent); padding: 0; text-decoration: underline; }
+.notice { border-color: var(--accent); }
+
+.packs { display: flex; flex-wrap: wrap; gap: 16px; }
+.pack {
+  position: relative; width: 170px; aspect-ratio: 5 / 7; border-radius: 12px; padding: 22px 14px 14px;
+  display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center;
+  color: #fff; background: linear-gradient(150deg, var(--accent) 0%, #0e3a30 100%);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .25), inset 0 0 0 2px rgba(255, 255, 255, .15);
+}
+/* Crimped foil seal along the top edge. */
+.pack::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 12px; border-radius: 12px 12px 0 0;
+  background: repeating-linear-gradient(90deg, rgba(255, 255, 255, .35) 0 4px, rgba(255, 255, 255, .1) 4px 8px);
+}
+.pack-brand { font-size: 12px; letter-spacing: .2em; opacity: .85; }
+.pack-week { font-size: 24px; }
+.pack-count { font-size: 13px; opacity: .85; }
+.pack-open { background: #fff; color: #0e3a30; font-weight: 600; }
+.pack-open:disabled { opacity: .5; cursor: default; }
+
+.tile {
+  display: flex; flex-direction: column; gap: 4px; min-height: 120px; padding: 14px; text-align: left;
+  background: var(--card); color: var(--fg); border: 1px solid var(--line); border-top: 5px solid var(--common);
+  border-radius: 10px; font: inherit; width: 100%;
+}
+button.tile { cursor: pointer; }
+button.tile:hover, button.tile:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
+.tile-name { font-size: 17px; }
+.tile-rarity { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--common); }
+.rarity-rare { border-top-color: var(--rare); } .rarity-rare .tile-rarity { color: var(--rare); }
+.rarity-epic { border-top-color: var(--epic); } .rarity-epic .tile-rarity { color: var(--epic); }
+.rarity-legendary { border-top-color: var(--legendary); } .rarity-legendary .tile-rarity { color: var(--legendary); }
+.locked-slot { border-style: dashed; border-top-style: solid; opacity: .5; filter: grayscale(1); }
+.badge.lending { border-color: var(--accent); color: var(--accent); align-self: flex-start; }
+
+.completion { width: 100%; max-width: 320px; height: 8px; accent-color: var(--accent); }
+.reveal { margin-bottom: 16px; }
+.reveal-in { animation: reveal-in .35s ease-out; }
+@keyframes reveal-in { from { opacity: 0; transform: translateY(8px) scale(.96); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .reveal-in { animation: none; } }
+
+.detail-head { display: grid; grid-template-columns: minmax(0, 180px) 1fr; gap: 16px; align-items: start; }
+@media (max-width: 480px) { .detail-head { grid-template-columns: 1fr; } }
+.detail-head h3 { margin-top: 0; }
+.copies { display: flex; gap: 8px; flex-wrap: wrap; }
+details summary { cursor: pointer; font-weight: 600; margin: 12px 0 4px; }
+.request { margin-bottom: 8px; }
