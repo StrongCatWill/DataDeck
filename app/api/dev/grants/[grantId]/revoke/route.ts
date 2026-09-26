@@ -1,10 +1,11 @@
 import { devRoutesDisabled, devRoutesEnabled } from "@/lib/devRoutes";
+import { getErasureLog } from "@/lib/erasure";
 import { getMockGrantService } from "@/lib/grants";
 import { getVault } from "@/lib/vault";
 
 type Params = { params: Promise<{ grantId: string }> };
 
-/** Mock kill switch: revokes the grant and destroys every key still held for it. */
+/** Mock kill switch: revokes the grant, destroys every key still held for it and logs an erasure request. */
 export async function POST(_request: Request, { params }: Params) {
   if (!devRoutesEnabled()) return devRoutesDisabled();
 
@@ -14,5 +15,6 @@ export async function POST(_request: Request, { params }: Params) {
 
   service.revokeGrant(grantId);
   getVault().destroyKeys(grantId);
-  return Response.json({ grantId, status: "revoked" });
+  const erasureRequest = getErasureLog().request(grantId, null, Date.now());
+  return Response.json({ grantId, status: "revoked", erasureRequest });
 }

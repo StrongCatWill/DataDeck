@@ -48,7 +48,9 @@ describe("key API with the mock grant service", () => {
     const grantId = await newGrant();
     expect((await keyFor(grantId, "0")).status).toBe(200);
 
-    expect((await revokeGrant(req(), params({ grantId }))).status).toBe(200);
+    const revoked = await revokeGrant(req(), params({ grantId }));
+    expect(revoked.status).toBe(200);
+    expect((await revoked.json()).erasureRequest).toMatchObject({ grantId, revokeTx: null });
 
     const refused = await keyFor(grantId, "0");
     expect(refused.status).toBe(403);
