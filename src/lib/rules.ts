@@ -1,3 +1,4 @@
+import { sha256Hex } from "./hash";
 import type { AccessType, Bounty, Ruleset } from "./types";
 
 // Guardrails baked into the rules engine; the player cannot edit these.
@@ -12,12 +13,16 @@ export function validateRuleset(r: Ruleset, now = new Date()): string[] {
   if (ACCESS_RANK[r.match.maxAccess] > ACCESS_RANK[MAX_RULE_ACCESS]) errors.push("Longest access a rule can grant is a 30-day stream.");
   if ((r.match.orgType as string) === "commercial") errors.push("Commercial buyers can never be auto-accepted.");
   if (r.match.dataForm !== "pseudonymised") errors.push('Data form must be "pseudonymised".');
+  if (r.match.requiresEthicsApproval !== true) errors.push("Rules only match studies with an ethics approval reference.");
+  if (r.match.cardTypes.length === 0) errors.push("Pick at least one card type.");
+  if (Number.isNaN(new Date(r.expiresAt).getTime()) || new Date(r.expiresAt) <= now) errors.push("Expiry must be a future date.");
   return errors;
 }
 
 /** Returns true only if the bounty passes the fixed guardrails AND the player's rule. */
 export function matches(rule: Ruleset, bounty: Bounty, now = new Date()): boolean {
   // Fixed guardrails
+  if (validateRuleset(rule, now).length > 0) return false;
   if (bounty.orgType === "commercial") return false;
   if (!bounty.verified || !bounty.ethicsRef) return false;
   if (new Date(rule.expiresAt) < now) return false;
@@ -31,6 +36,12 @@ export function matches(rule: Ruleset, bounty: Bounty, now = new Date()): boolea
     bounty.priceUsdc >= m.minPricePerDayUsdc
   );
 }
+
+/** What goes on-chain (RuleDelegate.rule_hash or the dd:rules memo) so a grant can prove which rule created it. */
+export const ruleHash = (rule: Ruleset) => sha256Hex(JSON.stringify(rule));
+
+/** Rule expiry as unix seconds, for set_rule_delegate / dd:rules. */
+export const ruleExpiresAt = (rule: Ruleset) => Math.floor(new Date(rule.expiresAt).getTime() / 1000);
 
 export const DEMO_RULE: Ruleset = {
   ruleId: "r-01",

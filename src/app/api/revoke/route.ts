@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { erasureLog, grantBackend } from "@/lib/grants";
+import { disableRules } from "@/lib/rulesStore";
 import { destroyUnreleasedKeys } from "@/lib/vault";
 
 // POST /api/revoke { player }                  - mock: the server revokes every active grant itself
@@ -11,6 +12,7 @@ export async function POST(req: Request) {
   if (tx !== undefined || grantIds !== undefined) return recordSignedRevoke(player, tx, grantIds);
 
   const { tx: mockTx, revoked } = await grantBackend().revokeAll(player);
+  disableRules(player); // the mock stand-in for disable_delegate in the same tx
   const destroyed = revoked.reduce((n, g) => n + destroyUnreleasedKeys(g.grantId), 0);
   const requestedAt = new Date().toISOString();
   for (const g of revoked) erasureLog.push({ grantId: g.grantId, researcher: g.researcher, revokeTx: mockTx, requestedAt });
@@ -48,6 +50,8 @@ async function recordSignedRevoke(player: string, tx: unknown, grantIds: unknown
     revoked.push(grantId);
   }
 
+  // The wallet's kill switch also ran disable_delegate; stop server-side auto-accept to match.
+  if (revoked.length > 0) disableRules(player);
   const status = revoked.length === 0 && rejected.length > 0 ? 403 : 200;
   return NextResponse.json({ tx, revoked, rejected, keysDestroyed: destroyed }, { status });
 }
