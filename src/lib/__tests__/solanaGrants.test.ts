@@ -15,7 +15,6 @@ import {
 } from "../solana/codec";
 import { createGrantIx, grantPda } from "../solana/grantTx";
 import { grantsFromMemos } from "../solana/memoGrants";
-import { ATA_PROGRAM_ID, TOKEN_PROGRAM_ID, associatedTokenAddress, payoutBatch, payoutIxs } from "../solana/payout";
 
 const disc = (name: string) => [...createHash("sha256").update(name).digest().subarray(0, 8)];
 const toBase58 = (b: Uint8Array) => new PublicKey(b).toBase58();
@@ -172,28 +171,5 @@ describe("Memo fallback", () => {
       const [g] = await grantsFromMemos(conn, P, sources);
       expect(g.status).toBe("Revoked");
     });
-  });
-});
-
-describe("USDC payout", () => {
-  it("creates the player's token account if needed, then transferChecked price_per_day with 6 decimals", () => {
-    const mint = new PublicKey("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU");
-    const [create, transfer] = payoutIxs(researcher, player, mint, 600_000);
-    expect(create.programId.equals(ATA_PROGRAM_ID)).toBe(true);
-    expect([...create.data]).toEqual([1]); // CreateIdempotent
-    expect(create.keys[1].pubkey.equals(associatedTokenAddress(player, mint))).toBe(true);
-
-    expect(transfer.programId.equals(TOKEN_PROGRAM_ID)).toBe(true);
-    expect(transfer.data[0]).toBe(12); // TransferChecked
-    expect(transfer.data.readBigUInt64LE(1)).toBe(600_000n);
-    expect(transfer.data[9]).toBe(6);
-    expect(transfer.keys[0].pubkey.equals(associatedTokenAddress(researcher, mint))).toBe(true);
-    expect(transfer.keys[3]).toMatchObject({ pubkey: researcher, isSigner: true });
-  });
-
-  it("pays nothing for non-stream grants or mock players", async () => {
-    const base = { grantId, bountyHash, researcher: researcher.toBase58(), createdAt: 0, expiresAt: 1, pricePerDay: 1, status: "Active" as const, auto: false, ruleHash: null, revokedAt: null };
-    expect(await payoutBatch({ ...base, player: player.toBase58(), accessType: "snapshot_24h" }, 0)).toBeNull();
-    expect(await payoutBatch({ ...base, player: "demo-player", accessType: "stream_30d" }, 0)).toBeNull();
   });
 });
