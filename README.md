@@ -64,8 +64,14 @@ the player with a kill-switch button.
 | Per-batch AES-256-GCM + key API + crypto-shredding | Working against the mock grant backend |
 | Researcher portal (decrypt, lock on revoke) | Working |
 | Kill switch | Working against mock; needs the signed on-chain tx |
-| Anchor program `program/lib.rs` | Compiles (`cargo check`, anchor-lang 0.31); not yet deployed |
-| Anchor/Memo grant backends, USDC payouts, ruleset builder UI, privacy panel, notifications | TODO |
+| Anchor program `program/lib.rs` | Builds in Solana Playground; program ID `rwoLAon5MSWyDo1wTistRj2McNJTUF1f1pwdnxzJxLP`; devnet deploy pending test SOL |
+| Anchor/Memo grant backends (`src/lib/solana/`) | Done and unit-tested; `GRANT_BACKEND=mock` until the program is deployed |
+| USDC payouts, ruleset builder UI, privacy panel, notifications | TODO |
+
+> **Demo note.** The grant program is written and built (program ID `rwoLAon5MSWyDo1wTistRj2McNJTUF1f1pwdnxzJxLP`).
+> Its devnet deployment is waiting on test SOL because the faucets are rate-limited, so today's demo runs on the mock
+> grant backend, which implements the same interface. Once the program is deployed, switching is one setting:
+> `GRANT_BACKEND=anchor`.
 
 ## Roles
 
