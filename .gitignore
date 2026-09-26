@@ -1,0 +1,13 @@
+node_modules/
+.next/
+out/
+.env*.local
+*.tsbuildinfo
+next-env.d.ts
+program/target/
+
+# personal Claude Code settings
+.claude/settings.local.json
+
+# team requirement docs, shared outside the repo
+Data_Deck_*.pdf
