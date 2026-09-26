@@ -5,11 +5,11 @@
 
 export type CardName =
   | "Early Bird"
+  | "Step Starter"
   | "Deep Sleeper"
   | "Calm Heart"
   | "Marathon Week"
-  | "Perfect Week"
-  | "Night Owl"; // TODO: confirm the sixth card against the v1 guide
+  | "Perfect Week";
 
 export type Rarity = "Common" | "Rare" | "Epic" | "Legendary";
 

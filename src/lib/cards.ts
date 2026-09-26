@@ -1,84 +1,88 @@
 import type { Card, CardName, DailyRow, Rarity } from "./types";
 
-// TODO(role C): replace these thresholds with the exact v1 card rules.
-// Each rule returns a reason string so "Why this card?" is always shown (FR-1).
+// Card rules from the v1 build guide, one week at a time. Each rule returns a reason string so
+// "Why this card?" is always shown (FR-1). Card data stays off-chain.
 interface CardRule {
   name: CardName;
   rarity: Rarity;
   test: (week: DailyRow[]) => string | null;
 }
 
-const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+const totalSteps = (w: DailyRow[]) => w.reduce((a, d) => a + d.steps, 0);
+const stepsText = (w: DailyRow[]) => `You walked ${totalSteps(w).toLocaleString("en")} steps this week.`;
+const deepSleeper = (w: DailyRow[]) => w.length === 7 && w.every((d) => d.sleep_hours >= 8);
+const stepStarter = (w: DailyRow[]) => totalSteps(w) >= 50_000;
+const calmHeart = (w: DailyRow[]) => w.every((d) => d.resting_hr < 60);
 
 const RULES: CardRule[] = [
   {
-    name: "Early Bird",
+    name: "Early Bird", // Awake before 7:00 on 5+ days
     rarity: "Common",
     test: (w) => {
-      const n = w.filter((d) => d.wake_time <= "06:30").length;
-      return n >= 5 ? `You woke up by 06:30 on ${n} of 7 days.` : null;
+      const n = w.filter((d) => d.wake_time < "07:00").length;
+      return n >= 5 ? `You were up before 7:00 on ${n} of 7 days.` : null;
     },
   },
   {
-    name: "Deep Sleeper",
+    name: "Step Starter", // 50,000+ steps
+    rarity: "Common",
+    test: (w) => (stepStarter(w) ? stepsText(w) : null),
+  },
+  {
+    name: "Deep Sleeper", // 8+ hours sleep on 7 nights
     rarity: "Rare",
-    test: (w) => {
-      const deep = avg(w.map((d) => d.deep_sleep_min));
-      return deep >= 95 ? `Your deep sleep averaged ${deep.toFixed(0)} minutes a night.` : null;
-    },
+    test: (w) =>
+      deepSleeper(w)
+        ? `You slept 8+ hours every night; your shortest night was ${Math.min(...w.map((d) => d.sleep_hours))} h.`
+        : null,
   },
   {
-    name: "Calm Heart",
+    name: "Calm Heart", // Resting heart rate under 60 bpm all week
     rarity: "Rare",
-    test: (w) => {
-      const hr = avg(w.map((d) => d.resting_hr));
-      return hr <= 58 ? `Your resting heart rate averaged ${hr.toFixed(0)} bpm.` : null;
-    },
+    test: (w) =>
+      calmHeart(w)
+        ? `Your resting heart rate stayed under 60 bpm all week; the highest was ${Math.max(...w.map((d) => d.resting_hr))}.`
+        : null,
   },
   {
-    name: "Marathon Week",
+    name: "Marathon Week", // 100,000+ steps
     rarity: "Epic",
-    test: (w) => {
-      const steps = w.reduce((a, d) => a + d.steps, 0);
-      return steps >= 100_000 ? `You walked ${steps.toLocaleString("en")} steps this week.` : null;
-    },
+    test: (w) => (totalSteps(w) >= 100_000 ? stepsText(w) : null),
   },
   {
-    name: "Night Owl",
-    rarity: "Common",
-    test: (w) => {
-      const n = w.filter((d) => d.bedtime >= "23:30" || d.bedtime < "05:00").length;
-      return n >= 3 ? `You went to bed after 23:30 on ${n} nights.` : null;
-    },
-  },
-  {
-    name: "Perfect Week",
+    name: "Perfect Week", // Deep Sleeper + Step Starter + Calm Heart in the same week
     rarity: "Legendary",
     test: (w) =>
-      w.every((d) => d.sleep_hours >= 7.5 && d.active_min >= 30)
-        ? "Every day this week had 7.5+ hours of sleep and 30+ active minutes."
+      deepSleeper(w) && stepStarter(w) && calmHeart(w)
+        ? "You earned Deep Sleeper, Step Starter and Calm Heart in the same week."
         : null,
   },
 ];
 
-export function generateCards(rows: DailyRow[]): Card[] {
+export function groupWeeks(rows: DailyRow[]): Map<number, DailyRow[]> {
   const weeks = new Map<number, DailyRow[]>();
   for (const r of rows) weeks.set(r.week, [...(weeks.get(r.week) ?? []), r]);
+  return weeks;
+}
 
+/** Cards per week. Earning the same card again raises its level (cosmetic only; never changes pay). */
+export function generateCards(rows: DailyRow[]): Card[] {
   const cards: Card[] = [];
-  for (const [week, days] of weeks) {
+  const earned = new Map<CardName, number>();
+  for (const [week, days] of [...groupWeeks(rows)].sort(([a], [b]) => a - b)) {
     for (const rule of RULES) {
       const why = rule.test(days);
-      if (why) {
-        cards.push({
-          id: `w${week}-${rule.name.toLowerCase().replace(/\s+/g, "-")}`,
-          name: rule.name,
-          rarity: rule.rarity,
-          week,
-          whyThisCard: why,
-          level: 1,
-        });
-      }
+      if (!why) continue;
+      const level = (earned.get(rule.name) ?? 0) + 1;
+      earned.set(rule.name, level);
+      cards.push({
+        id: `w${week}-${rule.name.toLowerCase().replace(/\s+/g, "-")}`,
+        name: rule.name,
+        rarity: rule.rarity,
+        week,
+        whyThisCard: why,
+        level,
+      });
     }
   }
   return cards;
