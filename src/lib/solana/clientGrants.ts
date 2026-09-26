@@ -130,8 +130,33 @@ export async function stopSharing(activeGrantIds: string[], deps: Deps): Promise
   }
   if (tx.instructions.length === 0) throw new Error("Nothing to stop");
   const sig = await sendAndConfirm(tx, deps);
-  const res = await post(fetchFn, "/api/revoke", { player: publicKey.toBase58(), tx: sig, grantIds: activeGrantIds });
-  return { tx: sig, response: await res.json() };
+
+  // The server checks each revoke on-chain; while its RPC lags it answers "Not revoked on-chain yet", so retry those.
+  const revoked: string[] = [];
+  let pending = activeGrantIds;
+  let response: RevokeResponse = { tx: sig, revoked, rejected: [], keysDestroyed: 0 };
+  let keysDestroyed = 0;
+  for (let attempt = 0; pending.length > 0; attempt++) {
+    const res = await post(fetchFn, "/api/revoke", { player: publicKey.toBase58(), tx: sig, grantIds: pending });
+    const body = (await res.json()) as Partial<RevokeResponse>;
+    revoked.push(...(body.revoked ?? []));
+    keysDestroyed += body.keysDestroyed ?? 0;
+    const rejected = body.rejected ?? [];
+    response = { tx: sig, revoked, rejected, keysDestroyed };
+    pending = rejected.filter((r) => r.reason === NOT_YET).map((r) => r.grantId);
+    if (pending.length === 0 || attempt >= 4 || res.status === 400) break;
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+  return { tx: sig, response };
+}
+
+const NOT_YET = "Not revoked on-chain yet";
+
+export interface RevokeResponse {
+  tx: string;
+  revoked: string[];
+  rejected: { grantId: string; reason: string }[];
+  keysDestroyed: number;
 }
 
 /**

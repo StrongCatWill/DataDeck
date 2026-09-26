@@ -95,6 +95,23 @@ describe("stopSharing", () => {
     expect(h.posts[0]).toEqual({ url: "/api/revoke", body: { player: player.toBase58(), tx, grantIds: ids } });
   });
 
+  it("retries grants the server has not seen revoked yet", async () => {
+    const h = harness();
+    const ids = ["7f3a00112233445566778899aabbccdd", "00000000000000000000000000000001"];
+    const replies = [
+      { revoked: [ids[0]], rejected: [{ grantId: ids[1], reason: "Not revoked on-chain yet" }], keysDestroyed: 3 },
+      { revoked: [ids[1]], rejected: [], keysDestroyed: 2 },
+    ];
+    const fetchFn = (async (url: string, init: RequestInit) => {
+      h.posts.push({ url, body: JSON.parse(init.body as string) });
+      return new Response(JSON.stringify(replies.shift()), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const { response } = await stopSharing(ids, { ...h.deps, fetchFn, mode: "memo" });
+    expect(h.posts.map((p) => p.body.grantIds)).toEqual([ids, [ids[1]]]);
+    expect(response).toMatchObject({ revoked: ids, rejected: [], keysDestroyed: 5 });
+  }, 10_000);
+
   it("anchor mode skips disable_delegate when the player never set one", async () => {
     const h = harness();
     await stopSharing(["7f3a00112233445566778899aabbccdd"], { ...h.deps, mode: "anchor" });
