@@ -1,4 +1,5 @@
 import { sha256Hex } from "./hash";
+import { assessRisk, isRiskLevel, withinTolerance } from "./risk";
 import type { AccessType, Bounty, Ruleset } from "./types";
 
 // Guardrails baked into the rules engine; the player cannot edit these.
@@ -14,6 +15,7 @@ export function validateRuleset(r: Ruleset, now = new Date()): string[] {
   if ((r.match.orgType as string) === "commercial") errors.push("Commercial buyers can never be auto-accepted.");
   if (r.match.dataForm !== "pseudonymised") errors.push('Data form must be "pseudonymised".');
   if (r.match.requiresEthicsApproval !== true) errors.push("Rules only match studies with an ethics approval reference.");
+  if (r.match.maxRisk !== undefined && !isRiskLevel(r.match.maxRisk)) errors.push("Risk tolerance must be Low, Medium or High.");
   if (r.match.cardTypes.length === 0) errors.push("Pick at least one card type.");
   if (Number.isNaN(new Date(r.expiresAt).getTime()) || new Date(r.expiresAt) <= now) errors.push("Expiry must be a future date.");
   return errors;
@@ -33,7 +35,8 @@ export function matches(rule: Ruleset, bounty: Bounty, now = new Date()): boolea
     m.cardTypes.includes(bounty.cardWanted) &&
     ACCESS_RANK[bounty.accessType] <= ACCESS_RANK[m.maxAccess] &&
     bounty.priceUnit === "per_day" &&
-    bounty.priceUsdc >= m.minPricePerDayUsdc
+    bounty.priceUsdc >= m.minPricePerDayUsdc &&
+    (m.maxRisk === undefined || withinTolerance(assessRisk(bounty).level, m.maxRisk))
   );
 }
 
