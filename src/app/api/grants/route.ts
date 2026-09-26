@@ -30,8 +30,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Bounty does not match an auto-accept rule" }, { status: 403 });
   }
 
+  const batches = batchesFor(bounty, loadSampleRows());
+  if (!batches) return NextResponse.json({ error: `No ${bounty.cardWanted} card to lend` }, { status: 409 });
+
   const grant = await grantBackend().createGrant({ player, bountyId, cardId, rule: auto ? DEMO_RULE : undefined });
-  sealBatches(grant.grantId, batchesFor(bounty.accessType, loadSampleRows()));
+  sealBatches(grant.grantId, batches);
   return NextResponse.json(grant, { status: 201 });
 }
 
@@ -47,7 +50,9 @@ async function recordSignedGrant(grantId: string, player: string, bounty: Bounty
   const mismatch = signedGrantMismatch(grant, player, bounty);
   if (mismatch) return NextResponse.json({ error: mismatch }, { status: 403 });
 
-  sealBatches(grantId, batchesFor(bounty.accessType, loadSampleRows()));
+  const batches = batchesFor(bounty, loadSampleRows());
+  if (!batches) return NextResponse.json({ error: `No ${bounty.cardWanted} card to lend` }, { status: 409 });
+  sealBatches(grantId, batches);
   return NextResponse.json({ ...grant, bountyId: bounty.id, cardId }, { status: 201 });
 }
 
