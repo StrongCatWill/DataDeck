@@ -8,6 +8,10 @@ Solana. One tap stops sharing.
 
 > **Devnet only. Sample data only. No real health data is used.**
 
+## Demo
+
+![Data Deck demo](docs/demo.gif)
+
 ## Why
 
 Your watch knows how you sleep, and research wants that data. Today you either give it away for good or not at all.
