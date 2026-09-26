@@ -20,6 +20,7 @@ describe("GET /api/keys/[grantId]/[batch]", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toMatchObject({ grantId: grant.grantId, batch: 1 });
+    expect(body.payoutSig).toMatch(/^sim-/); // PAYOUT_MODE defaults to simulate
 
     const b = getBatches(grant.grantId)[1];
     const decipher = createDecipheriv("aes-256-gcm", Buffer.from(body.key, "base64"), Buffer.from(b.iv, "base64"));

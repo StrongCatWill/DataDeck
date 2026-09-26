@@ -9,6 +9,7 @@ export const DISC = {
   revokeGrant: [134, 180, 57, 39, 152, 7, 154, 98],
   consumeGrant: [73, 180, 19, 83, 37, 23, 141, 99],
   disableDelegate: [72, 67, 145, 11, 191, 67, 66, 72],
+  setRuleDelegate: [85, 110, 240, 86, 44, 120, 83, 166],
   grantAccount: [161, 166, 11, 205, 204, 135, 205, 54],
 } as const;
 
@@ -89,12 +90,28 @@ export function encodeCreateGrant(grantIdHex: string, bountyHashHex: string, acc
   return out;
 }
 
+/** set_rule_delegate args: delegate pubkey (32), rule_hash[32], expires_at i64 (little-endian). */
+export function encodeSetRuleDelegate(delegate: Uint8Array, ruleHashHex: string, expiresAt: number) {
+  const out = new Uint8Array(8 + 32 + 32 + 8);
+  out.set(DISC.setRuleDelegate, 0);
+  out.set(delegate, 8);
+  out.set(hexToBytes(ruleHashHex, 32), 40);
+  new DataView(out.buffer).setBigInt64(72, BigInt(expiresAt), true);
+  return out;
+}
+
 // ---------- Memo fallback ----------
-// dd:grant id=<32 hex> type=S24|S30|Q1 exp=<unix s> price=<USDC base units> res=<researcher pubkey> bh=<64 hex>
-// dd:revoke id=<32 hex>
-// Same fields as the Grant account; nothing health-related.
+// Signed by the player:
+//   dd:grant id=<32 hex> type=S24|S30|Q1 exp=<unix s> price=<USDC base units> res=<researcher pubkey> bh=<64 hex>
+//   dd:revoke id=<32 hex>
+//   dd:rules d=<delegate pubkey> rh=<64 hex> exp=<unix s>     (registers the auto-accept delegate)
+//   dd:rules-off                                              (kill switch: disables the delegate)
+// Signed by the rule delegate for a player (auto-accept): dd:grant ... p=<player pubkey> rh=<64 hex>
+// Same fields as the Grant / RuleDelegate accounts; nothing health-related.
 
 const MEMO_TYPE: Record<AccessType, string> = { snapshot_24h: "S24", stream_30d: "S30", single_query: "Q1" };
+const PUBKEY_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+const HASH_RE = /^[0-9a-f]{64}$/;
 
 export interface GrantMemo {
   kind: "grant";
@@ -104,29 +121,56 @@ export interface GrantMemo {
   pricePerDay: number;
   researcher: string;
   bountyHash: string;
+  /** Set only on delegate-signed (auto-accept) grants. */
+  player?: string;
+  ruleHash?: string;
 }
-export type DdMemo = GrantMemo | { kind: "revoke"; grantId: string };
+export interface RulesMemo {
+  kind: "rules";
+  delegate: string;
+  ruleHash: string;
+  expiresAt: number;
+}
+export type DdMemo = GrantMemo | RulesMemo | { kind: "revoke"; grantId: string } | { kind: "rules-off" };
 
 export function formatGrantMemo(m: Omit<GrantMemo, "kind">): string {
-  return `dd:grant id=${m.grantId} type=${MEMO_TYPE[m.accessType]} exp=${m.expiresAt} price=${m.pricePerDay} res=${m.researcher} bh=${m.bountyHash}`;
+  const base = `dd:grant id=${m.grantId} type=${MEMO_TYPE[m.accessType]} exp=${m.expiresAt} price=${m.pricePerDay} res=${m.researcher} bh=${m.bountyHash}`;
+  return m.player && m.ruleHash ? `${base} p=${m.player} rh=${m.ruleHash}` : base;
 }
 
 export const formatRevokeMemo = (grantId: string) => `dd:revoke id=${grantId}`;
+export const formatRulesMemo = (m: Omit<RulesMemo, "kind">) => `dd:rules d=${m.delegate} rh=${m.ruleHash} exp=${m.expiresAt}`;
+export const RULES_OFF_MEMO = "dd:rules-off";
 
 /** Parses one memo string; returns null for anything that is not a well-formed dd: memo. */
 export function parseMemo(text: string): DdMemo | null {
   const [head, ...pairs] = text.trim().split(/\s+/);
-  const f = Object.fromEntries(pairs.map((p) => p.split("=", 2)));
+  const f: Record<string, string> = Object.fromEntries(pairs.map((p) => p.split("=", 2)));
+  const int = (v: string | undefined) => (v !== undefined && /^\d+$/.test(v) && Number.isSafeInteger(Number(v)) ? Number(v) : null);
+
+  if (head === "dd:rules-off") return pairs.length === 0 ? { kind: "rules-off" } : null;
+  if (head === "dd:rules") {
+    const expiresAt = int(f.exp);
+    if (!PUBKEY_RE.test(f.d ?? "") || !HASH_RE.test(f.rh ?? "") || expiresAt === null) return null;
+    return { kind: "rules", delegate: f.d, ruleHash: f.rh, expiresAt };
+  }
+
   if (!/^[0-9a-f]{32}$/.test(f.id ?? "")) return null;
   if (head === "dd:revoke") return { kind: "revoke", grantId: f.id };
   if (head !== "dd:grant") return null;
 
   const accessType = (Object.keys(MEMO_TYPE) as AccessType[]).find((t) => MEMO_TYPE[t] === f.type);
-  const expiresAt = Number(f.exp);
-  const pricePerDay = Number(f.price);
-  if (!accessType || !Number.isSafeInteger(expiresAt) || !Number.isSafeInteger(pricePerDay)) return null;
-  if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(f.res ?? "") || !/^[0-9a-f]{64}$/.test(f.bh ?? "")) return null;
-  return { kind: "grant", grantId: f.id, accessType, expiresAt, pricePerDay, researcher: f.res, bountyHash: f.bh };
+  const expiresAt = int(f.exp);
+  const pricePerDay = int(f.price);
+  if (!accessType || expiresAt === null || pricePerDay === null) return null;
+  if (!PUBKEY_RE.test(f.res ?? "") || !HASH_RE.test(f.bh ?? "")) return null;
+  const memo: GrantMemo = { kind: "grant", grantId: f.id, accessType, expiresAt, pricePerDay, researcher: f.res, bountyHash: f.bh };
+  if (f.p !== undefined || f.rh !== undefined) {
+    if (!PUBKEY_RE.test(f.p ?? "") || !HASH_RE.test(f.rh ?? "")) return null;
+    memo.player = f.p;
+    memo.ruleHash = f.rh;
+  }
+  return memo;
 }
 
 /**

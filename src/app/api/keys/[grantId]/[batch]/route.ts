@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { checkKeyAccess } from "@/lib/grantAccess";
 import { grantBackend } from "@/lib/grants";
+import { payoutBatch } from "@/lib/solana/payout";
 import { destroyUnreleasedKeys, releaseKey } from "@/lib/vault";
 import type { KeyRelease } from "@/lib/types";
 
@@ -25,7 +26,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ grantId
   if (!key) return NextResponse.json({ error: "No key for this batch" }, { status: 404 });
 
   if (access.grant.accessType === "single_query") await backend.consumeGrant(grantId);
-  // TODO(role A): for stream batches, send price_per_day devnet USDC from the researcher wallet to the player.
-  const body: KeyRelease = { grantId, batch, key: key.toString("base64") };
+  // Pays the player for this batch (FR-7). A failed transfer never blocks the key; the next request retries it.
+  const payout = await payoutBatch(access.grant, batch).catch(() => null);
+  const body: KeyRelease = { grantId, batch, key: key.toString("base64"), payoutSig: payout?.signature };
   return NextResponse.json(body);
 }
