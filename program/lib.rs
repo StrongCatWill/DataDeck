@@ -3,7 +3,7 @@
 // Hard rule: no health terms in any account or instruction (NFR-1).
 use anchor_lang::prelude::*;
 
-declare_id!("11111111111111111111111111111111"); // Playground replaces this on build
+declare_id!("rwoLAon5MSWyDo1wTistRj2McNJTUF1f1pwdnxzJxLP"); // Playground build 2026-09-26; not yet deployed to devnet
 
 const STREAM_SECS: i64 = 30 * 10; // demo clock: 30 days x 10 s
 const SNAPSHOT_SECS: i64 = 24 * 3600;
