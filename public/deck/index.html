@@ -118,6 +118,15 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .flash{animation:flash 700ms var(--ease-out) 1}
 @keyframes flash{0%{box-shadow:0 0 0 0 var(--sun)}40%{box-shadow:0 0 0 10px var(--sun)}100%{box-shadow:4px 4px 0 var(--sun)}}
 .earn{font:700 13px/18px var(--font-mono);padding:4px 8px;border:2px solid var(--line);background:var(--surface);border-radius:var(--radius-sm)}
+.card .meta,.card .lockline{font-size:12px;line-height:16px;color:var(--ink-muted)}
+.card .flag.new{left:auto;right:8px}
+.card.locked{cursor:default;border-style:dashed;border-color:var(--slate);box-shadow:none;opacity:.6}
+.card.locked:active{transform:none;box-shadow:none}
+.card.locked .rar::before{background:var(--surface-sunk)}
+.set{display:flex;flex-direction:column;gap:6px}
+.setbar{height:10px;border:2px solid var(--line);background:var(--surface);border-radius:var(--radius-sm);overflow:hidden}
+.setbar i{display:block;height:100%;width:0;background:var(--cobalt);transition:width var(--dur-slow) var(--ease-out)}
+.copies{display:flex;gap:8px;flex-wrap:wrap}
 
 /* detail */
 .dhero{border:3px solid var(--rarity);border-radius:var(--radius-lg);overflow:hidden;background:var(--surface);box-shadow:var(--shadow-hard-lg);transform-origin:top left}
@@ -261,15 +270,16 @@ h1,h2,h3{margin:0;text-wrap:balance}
       <!-- 2 deck -->
       <div class="screen" id="sDeck" hidden>
         <div class="topline"><h2 class="display-l">Your deck</h2><span class="earn" id="earn1">0.00 USDC</span></div>
-        <p style="margin:-8px 0 0" class="muted">Week 38 · 4 new cards</p>
+        <p style="margin:-8px 0 0" class="muted" id="deckSub">Loading your cards…</p>
+        <div class="set"><div class="topline"><span class="label">Set</span><span class="mono" id="setCount">0 / 6 collected</span></div><div class="setbar" aria-hidden="true"><i id="setBar"></i></div></div>
         <div id="packWrap">
           <div class="pack" id="pack"><div class="tear"></div><div class="sunblk"></div><div class="inkblk"></div>
-            <span class="label">Week 38 pack</span><h3 class="display-l" style="color:inherit">4 cards inside</h3>
-            <button class="btn wide" type="button" id="openPack" style="margin-top:14px">Open pack</button>
+            <span class="label" id="packLabel">Weekly pack</span><h3 class="display-l" style="color:inherit" id="packCount">Sealed</h3>
+            <button class="btn wide" type="button" id="openPack" style="margin-top:14px" disabled>Open pack</button>
           </div>
         </div>
-        <div class="grid" id="cardGrid" hidden></div>
-        <p class="muted" id="deckHint" hidden style="margin:0;font-size:13px">Tap Deep Sleeper: a study is looking for it.</p>
+        <div class="grid" id="cardGrid"></div>
+        <p class="muted" id="deckHint" hidden style="margin:0;font-size:13px"></p>
       </div>
 
       <!-- 3 detail -->
@@ -280,7 +290,7 @@ h1,h2,h3{margin:0;text-wrap:balance}
 
       <!-- 5 bounties -->
       <div class="screen" id="sBounties" hidden>
-        <div class="topline"><button class="back" type="button" id="backDetail" aria-label="Back to card"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><path d="M15 5l-7 7 7 7"/></svg></button><span class="label muted">3 open bounties</span></div>
+        <div class="topline"><button class="back" type="button" id="backDetail" aria-label="Back to card"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><path d="M15 5l-7 7 7 7"/></svg></button><span class="label muted" id="bCount">Open bounties</span></div>
         <h2 class="display-l">Bounties</h2>
         <div class="stagger" id="bountyList" style="display:flex;flex-direction:column;gap:14px"></div>
       </div>
@@ -290,16 +300,17 @@ h1,h2,h3{margin:0;text-wrap:balance}
       <!-- 6 consent -->
       <div class="sheet" id="consent" role="dialog" aria-modal="true" aria-labelledby="cTitle">
         <div class="topline"><span class="label muted">Consent grant</span><span class="chip">Pseudonymised</span></div>
-        <h2 class="title" id="cTitle" style="font-size:20px;line-height:26px">Lend Deep Sleeper to Trinity Sleep Lab</h2>
+        <h2 class="title" id="cTitle" style="font-size:20px;line-height:26px">Lend a card</h2>
+        <p class="muted" id="cCard" style="margin:-8px 0 0;font-size:13px"></p>
         <div class="ai"><span class="label muted">AI-generated summary</span><div id="aiBox"></div></div>
         <dl class="facts">
-          <div><dt>Access</dt><dd>30-day stream</dd></div>
-          <div><dt>Pays</dt><dd>0.60 USDC/day</dd></div>
-          <div><dt>Retention</dt><dd>12 months</dd></div>
-          <div><dt>Ethics ref</dt><dd>TCD-24-118</dd></div>
+          <div><dt>Access</dt><dd id="fAccess">—</dd></div>
+          <div><dt>Pays</dt><dd id="fPays">—</dd></div>
+          <div><dt>Retention</dt><dd id="fRet">—</dd></div>
+          <div><dt>Ethics ref</dt><dd id="fEthics">—</dd></div>
         </dl>
-        <details class="notice"><summary>Researcher's full notice</summary><div>Trinity Sleep Lab (non-profit university) studies sleep duration in 18–30 year olds. We receive one pseudonymised batch of nightly sleep data per day for up to 30 days, decrypt it on university servers, and keep it for 12 months for this study only. Withdrawing stops future batches; you may request erasure of batches already received under GDPR Art. 17.</div></details>
-        <button class="btn primary wide" type="button" id="confirm">Lend 30 days</button>
+        <details class="notice"><summary>Researcher's full notice</summary><div id="noticeText"></div></details>
+        <button class="btn primary wide" type="button" id="confirm">Lend</button>
         <button class="btn ghost wide" type="button" id="cancel">Not now</button>
       </div>
 
@@ -308,7 +319,7 @@ h1,h2,h3{margin:0;text-wrap:balance}
         <span class="chip danger stamp" style="align-self:flex-start">Revoked</span>
         <h2 class="title" id="sTitle" style="font-size:20px;line-height:26px">Sharing stopped</h2>
         <ul class="list">
-          <li><span class="chip mint">Stopped</span><span>Future batches and payments from Trinity Sleep Lab.</span></li>
+          <li><span class="chip mint">Stopped</span><span id="stopWho">Future batches and payments.</span></li>
           <li><span class="chip">Destroyed</span><span><b class="mono" id="keysLeft">26</b> unreleased batch keys. Stored copies can't be decrypted.</span></li>
           <li><span class="chip sun">Can't recall</span><span><b class="mono" id="sharedN">4</b> batches already shared. An erasure request was sent to the researcher.</span></li>
         </ul>
@@ -324,17 +335,17 @@ h1,h2,h3{margin:0;text-wrap:balance}
     <div class="col-head"><span class="label">Researcher · desktop portal</span><span class="muted" style="font-size:13px">Demo clock: 1 day = 10 seconds</span></div>
     <div class="portal">
       <div class="phead">
-        <div><div class="label muted">Researcher portal</div><div class="title">Trinity Sleep Lab</div></div>
+        <div><div class="label muted">Researcher portal</div><div class="title" id="rTitle">No grant yet</div></div>
         <span class="chip" id="rStatus">Waiting</span>
       </div>
       <div class="pbody">
         <div class="tiles">
           <div class="tile"><span class="label muted">Grant</span><b id="rGrant">—</b></div>
-          <div class="tile"><span class="label muted">Access</span><b>30-day stream</b></div>
-          <div class="tile"><span class="label muted">Batches</span><b id="rCount">0 / 30</b></div>
+          <div class="tile"><span class="label muted">Access</span><b id="rAccess">—</b></div>
+          <div class="tile"><span class="label muted">Batches</span><b id="rCount">—</b></div>
           <div class="tile"><span class="label muted">Paid out</span><b id="rPaid">0.00 USDC</b></div>
         </div>
-        <div class="status-line" id="rLine"><span class="dot off"></span><span>No active grant. Requests are refused until a participant lends Deep Sleeper.</span></div>
+        <div class="status-line" id="rLine"><span class="dot off"></span><span>No active grant. Requests are refused until a participant lends a card.</span></div>
         <div class="batches" id="batches">
           <div class="empty" id="rEmpty"><div class="shape"></div><div><b>No data yet</b><br><span class="muted">Batches appear here one per day, decrypted only while the participant's grant is active.</span></div></div>
         </div>
@@ -347,23 +358,29 @@ h1,h2,h3{margin:0;text-wrap:balance}
 (function(){
   var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   var STEPS = ['Onboarding','Open the pack','Open a card','See a matching bounty','Bounty board','Consent sheet','Confirm the grant','Lending state','Researcher gets a batch','Payment received','Hold to stop sharing','Sharing stopped','Access revoked'];
-  var CARDS = [
-    {id:'early',name:'Early Bird',r:'common',rule:'Awake before 7:00 on 5+ days',why:'You woke before 7:00 on 5 of 7 days (earliest 06:12). Cards come only from these published rules; nothing else about you is inferred.',v:[60,80,70,90,85,40,50]},
-    {id:'sleep',name:'Deep Sleeper',r:'rare',rule:'8+ hours sleep on 7 nights',why:'You slept 8 hours or more on all 7 nights (average 8.6 h). Cards come only from these published rules; nothing else about you is inferred.',v:[82,88,84,90,86,95,92],match:true},
-    {id:'marathon',name:'Marathon Week',r:'epic',rule:'100,000+ steps in a week',why:'You walked 104,310 steps this week. Cards come only from these published rules; nothing else about you is inferred.',v:[70,95,60,100,80,90,75]},
-    {id:'perfect',name:'Perfect Week',r:'legendary',rule:'Deep Sleeper + Step Starter + Calm Heart',why:'Deep sleep, 50,000+ steps and a resting heart rate under 60, all in the same week.',v:[90,95,92,100,94,97,99]}
+  // The six card types from the v1 rules (src/lib/cards.ts). Which ones the player holds comes from GET /api/cards.
+  var TYPES = [
+    {name:'Early Bird', r:'common', art:'early', rule:'Awake before 7:00 on 5+ days'},
+    {name:'Step Starter', r:'common', art:'steps', rule:'50,000+ steps in the week'},
+    {name:'Deep Sleeper', r:'rare', art:'sleep', rule:'8+ hours sleep on all 7 nights'},
+    {name:'Calm Heart', r:'rare', art:'heart', rule:'Resting heart rate under 60 bpm all week'},
+    {name:'Marathon Week', r:'epic', art:'marathon', rule:'100,000+ steps in the week'},
+    {name:'Perfect Week', r:'legendary', art:'perfect', rule:'Deep Sleeper + Step Starter + Calm Heart in the same week'}
   ];
-  var BOUNTIES = [
-    {id:'tcd',name:'Trinity Sleep Lab',meta:'Non-profit university · Deep Sleeper · 30-day stream · kept 12 months',pr:'0.60',u:'USDC/day',m:true},
-    {id:'hh',name:'Heart Health AI',meta:'Commercial · Calm Heart, 2 weeks · 24-hour snapshot · kept 6 months · manual only',pr:'3.00',u:'USDC once'},
-    {id:'ai',name:'Active Ireland study',meta:'Non-profit · Marathon Week · single query · aggregate only',pr:'1.00',u:'USDC once'}
-  ];
-  var AI = 'A university sleep study gets one encrypted batch of your sleep data per day for 30 days. It keeps the data for 12 months. You can stop at any time; batches already shared can\'t be recalled.';
+  var RANK = {common:0, rare:1, epic:2, legendary:3};
+  var ORG = {non_profit_university:'Non-profit university', non_profit:'Non-profit', commercial:'Commercial'};
+  var ACCESS = {stream_30d:'30-day stream', snapshot_24h:'24-hour snapshot', single_query:'Single query'};
+  var FIELD = {sleep_hours:'sleep', deep_sleep_min:'deep sleep', steps:'steps', resting_hr:'resting HR', wake_time:'up at'};
+  var UNIT = {sleep_hours:' h', deep_sleep_min:' min', resting_hr:' bpm'};
+  var DATA = {loaded:false, error:null, cards:[], bounties:[], packs:[]};
   var S, timer, uid = 0;
   var $ = function(id){return document.getElementById(id)};
+  function esc(s){ return String(s).replace(/[&<>"']/g, function(ch){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]; }); }
+  function typeOf(name){ return TYPES.filter(function(t){return t.name===name})[0]; }
+  function pad(n){ return (n<10?'0':'')+n; }
 
-  /* Data Deck API wiring: this prototype drives the real backend (mock grant backend by default). */
-  var PLAYER = 'demo-player', BOUNTY = 'b-trinity-sleep', DAY_MS = 10000; // server demo clock: 1 day = 10 s
+  /* Data Deck API wiring: this app drives the real backend (mock grant backend by default). */
+  var PLAYER = 'demo-player', DAY_MS = 10000; // server demo clock: 1 day = 10 s
   function api(path, body){
     return fetch(path, body === undefined ? {} : {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(body)})
       .then(function(r){ return r.json().catch(function(){return {};}).then(function(j){ return {status:r.status, body:j}; }); });
@@ -380,18 +397,60 @@ h1,h2,h3{margin:0;text-wrap:balance}
     });
   }
 
+  /* cards and bounties from the server; packs are the generated cards grouped by week, rarest dealt last */
+  function packsByWeek(cards){
+    var weeks = {};
+    cards.forEach(function(c){ (weeks[c.week] = weeks[c.week] || []).push(c); });
+    return Object.keys(weeks).map(Number).sort(function(a,b){return a-b}).map(function(w){
+      return {week:w, cards:weeks[w].slice().sort(function(a,b){ return RANK[a.rarity.toLowerCase()]-RANK[b.rarity.toLowerCase()]; })};
+    });
+  }
+  function load(){
+    Promise.all([api('/api/cards'), api('/api/bounties')]).then(function(res){
+      if (res[0].status!==200 || res[1].status!==200) throw new Error('the server answered '+res[0].status+'/'+res[1].status);
+      DATA.cards = res[0].body.cards || []; DATA.bounties = res[1].body.bounties || [];
+      DATA.packs = packsByWeek(DATA.cards); DATA.loaded = true; DATA.error = null;
+    }).catch(function(e){ DATA.error = e.message || String(e); }).then(function(){ renderDeck(); });
+  }
+  function revealed(){
+    return DATA.packs.filter(function(p){ return S.opened.indexOf(p.week) >= 0; })
+      .reduce(function(all, p){ return all.concat(p.cards); }, []);
+  }
+  function copiesOf(name){ return revealed().filter(function(c){return c.name===name}).sort(function(a,b){return a.week-b.week}); }
+  function nextPack(){ return DATA.packs.filter(function(p){ return S.opened.indexOf(p.week) < 0; })[0]; }
+  function matchesFor(name){ return DATA.bounties.filter(function(b){return b.cardWanted===name}); }
+  function canLend(b){ return copiesOf(b.cardWanted).length >= b.weeksWanted; }
+  function grantBusy(){ return S.g && !S.g.stopped && !S.g.done; }
+  function price(b){ return b.priceUsdc.toFixed(2)+' USDC'+(b.priceUnit==='per_day'?'/day':' once'); }
+  function lendLabel(b){ return b.accessType==='stream_30d' ? 'Lend 30 days' : b.accessType==='snapshot_24h' ? 'Lend a 24-hour snapshot' : 'Lend one answer'; }
+  function fmtRow(r){
+    return Object.keys(r).map(function(k){
+      if (k==='date') return r[k];
+      if (k==='days') return r[k]+' days';
+      var label = FIELD[k] || (k.indexOf('mean_')===0 ? 'mean '+(FIELD[k.slice(5)]||k.slice(5).replace(/_/g,' ')) : k.replace(/_/g,' '));
+      var v = typeof r[k]==='number' ? r[k].toLocaleString('en') : r[k];
+      return label+' '+v+(UNIT[k] || UNIT[k.slice(5)] || '');
+    }).join(' · ');
+  }
+  function fmtBatch(rows){
+    if (!Array.isArray(rows) || rows.length===0) return 'empty batch';
+    if (rows.length===1) return fmtRow(rows[0]);
+    return rows.length+' days · '+rows[0].date+' to '+rows[rows.length-1].date;
+  }
+
   function art(id){
     var p = 'p'+(uid++);
     var a = {
       early:'<rect width="168" height="112" style="fill:var(--tangerine)"/><circle cx="84" cy="88" r="40" style="fill:var(--sun)"/><rect y="84" width="168" height="8" style="fill:var(--fixed-ink)"/><rect y="96" width="168" height="6" style="fill:var(--fixed-ink)"/><rect y="106" width="168" height="6" style="fill:var(--fixed-ink)"/>',
+      steps:'<rect width="168" height="112" style="fill:var(--mint)"/><rect x="18" y="80" width="38" height="32" style="fill:var(--fixed-ink)"/><rect x="56" y="58" width="38" height="54" style="fill:var(--fixed-ink)"/><rect x="94" y="36" width="38" height="76" style="fill:var(--fixed-ink)"/><rect x="138" y="14" width="16" height="16" style="fill:var(--sun)"/>',
       sleep:'<rect width="168" height="112" style="fill:var(--cobalt)"/><circle cx="108" cy="56" r="30" style="fill:var(--sun)"/><circle cx="122" cy="46" r="27" style="fill:var(--cobalt)"/><rect x="26" y="24" width="8" height="8" style="fill:var(--sun)"/><rect x="52" y="62" width="5" height="5" style="fill:var(--sun)"/><rect x="70" y="18" width="6" height="6" style="fill:var(--sun)"/>',
+      heart:'<rect width="168" height="112" style="fill:#F2F3F7"/><path d="M84 84 L52 54 A17 17 0 0 1 84 36 A17 17 0 0 1 116 54 Z" style="fill:var(--tangerine);stroke:#0E0F1A;stroke-width:2"/><polyline points="6,98 60,98 68,88 76,106 84,98 162,98" style="fill:none;stroke:#0E0F1A;stroke-width:4"/>',
       marathon:'<rect width="168" height="112" style="fill:var(--violet)"/><path d="M20 92 V40 H72 V76 H128 V24 H150" style="fill:none;stroke:#F2F3F7;stroke-width:8"/><rect x="12" y="86" width="16" height="16" style="fill:var(--fixed-ink)"/><rect x="142" y="16" width="16" height="16" style="fill:var(--sun)"/>',
-      perfect:'<defs><pattern id="'+p+'" width="8" height="8" patternUnits="userSpaceOnUse"><rect width="3" height="3" style="fill:#0E0F1A;opacity:.18"/></pattern></defs><rect width="168" height="112" style="fill:var(--sun)"/><rect width="168" height="112" fill="url(#'+p+')"/><path d="M36 34 L84 70 L134 36" style="fill:none;stroke:#0E0F1A;stroke-width:3"/><circle cx="36" cy="34" r="16" style="fill:var(--cobalt)"/><circle cx="43" cy="28" r="13" style="fill:var(--sun)"/><rect x="70" y="72" width="10" height="16" style="fill:#0E0F1A"/><rect x="80" y="62" width="10" height="26" style="fill:#0E0F1A"/><rect x="90" y="52" width="10" height="36" style="fill:#0E0F1A"/><polyline points="112,36 124,36 130,22 138,50 144,36 158,36" style="fill:none;stroke:var(--tangerine);stroke-width:5"/>'
+      perfect:'<defs><pattern id="'+p+'" width="8" height="8" patternUnits="userSpaceOnUse"><rect width="3" height="3" style="fill:#0E0F1A;opacity:.18"/></pattern></defs><rect width="168" height="112" style="fill:var(--sun)"/><rect width="168" height="112" fill="url(#'+p+')"/><path d="M36 34 L84 70 L134 36" style="fill:none;stroke:#0E0F1A;stroke-width:3"/><circle cx="36" cy="34" r="16" style="fill:var(--cobalt)"/><circle cx="43" cy="28" r="13" style="fill:var(--sun)"/><rect x="70" y="72" width="10" height="16" style="fill:#0E0F1A"/><rect x="80" y="62" width="10" height="26" style="fill:#0E0F1A"/><rect x="90" y="52" width="10" height="36" style="fill:#0E0F1A"/><polyline points="112,36 124,36 130,22 138,50 144,36 158,36" style="fill:none;stroke:var(--tangerine);stroke-width:5"/>',
+      locked:'<rect width="168" height="112" style="fill:var(--surface-sunk)"/><rect x="68" y="52" width="32" height="28" style="fill:none;stroke:var(--ink-muted);stroke-width:4"/><path d="M74 52 V44 a10 10 0 0 1 20 0 V52" style="fill:none;stroke:var(--ink-muted);stroke-width:4"/>'
     }[id];
     return '<svg viewBox="0 0 168 112" preserveAspectRatio="xMidYMid slice" aria-hidden="true">'+a+'</svg>';
   }
-  function spark(v){return '<div class="spark" aria-hidden="true">'+v.map(function(x){return '<i style="height:'+x+'%"></i>'}).join('')+'</div>'}
-  function card(c){return c}
 
   function setStep(n){
     S.step = Math.max(S.step||0, n);
@@ -416,62 +475,127 @@ h1,h2,h3{margin:0;text-wrap:balance}
   function countUp(el, to){
     if (reduce){ el.textContent = '+'+to.toFixed(2)+' USDC'; return; }
     var t0 = performance.now(), d = 420;
-    (function f(t){ var k = Math.min(1,(t-t0)/d); el.textContent = '+'+(to*k).toFixed(2)+' USDC'; if (k<1) requestAnimationFrame(f); })(t0);
+    (function f(t){ var k = Math.min(1,Math.max(0,(t-t0)/d)); el.textContent = '+'+(to*k).toFixed(2)+' USDC'; if (k<1) requestAnimationFrame(f); })(t0);
   }
 
-  /* deck */
-  function renderGrid(){
+  /* deck: set completion, the next sealed pack, and every card type (earned or locked) */
+  function renderDeck(dealt){
+    var packs = DATA.packs, next = nextPack();
+    var earned = TYPES.filter(function(t){ return copiesOf(t.name).length > 0; }).length;
+    $('setCount').textContent = earned+' / '+TYPES.length+' collected';
+    $('setBar').style.width = (100*earned/TYPES.length)+'%';
+    var sealed = packs.length - S.opened.length;
+    $('deckSub').textContent = DATA.error ? 'Could not load your cards: '+DATA.error :
+      !DATA.loaded ? 'Loading your cards…' :
+      next ? sealed+' sealed weekly pack'+(sealed===1?'':'s')+' · sample data' :
+      'All '+packs.length+' weekly packs opened · '+revealed().length+' cards';
+    $('packWrap').hidden = DATA.loaded && !next;
+    $('pack').classList.remove('tearing');
+    $('openPack').disabled = !next;
+    $('packLabel').textContent = next ? 'Week '+next.week+' pack' : 'Weekly pack';
+    $('packCount').textContent = next ? next.cards.length+' cards inside' : 'Sealed';
+    renderGrid(dealt);
+    var hint = TYPES.filter(function(t){ return copiesOf(t.name).length && matchesFor(t.name).some(canLend); })[0];
+    $('deckHint').hidden = !hint || grantBusy();
+    if (hint) $('deckHint').textContent = 'Tap '+hint.name+': a study is looking for it.';
+  }
+
+  function renderGrid(dealt){
     var g = $('cardGrid'); g.innerHTML='';
-    CARDS.forEach(function(c,i){
+    var lendId = grantBusy() ? S.g.card.id : null;
+    TYPES.forEach(function(t){
+      var copies = copiesOf(t.name), top = copies[copies.length-1];
+      if (!top){
+        var d = document.createElement('div'); d.className = 'card '+t.r+' locked';
+        d.setAttribute('aria-label', t.name+', not earned yet');
+        d.innerHTML = art('locked')+'<div class="body"><span class="label rar">'+t.r+'</span><span class="nm">'+t.name+'</span><span class="lockline">Not earned yet · '+t.rule+'</span></div>';
+        g.appendChild(d); return;
+      }
+      var n = matchesFor(t.name).length, di = dealt ? dealt.indexOf(t.name) : -1;
+      var lending = lendId && copies.some(function(c){ return c.id===lendId; });
       var b = document.createElement('button');
-      b.type='button'; b.className='card '+c.r+(reduce?'':' deal'); b.style.animationDelay=(i*80)+'ms'; b.dataset.id=c.id;
-      b.setAttribute('aria-label', c.name+', '+c.r+(c.match?', 1 bounty matches':''));
-      b.innerHTML = art(c.id)+'<div class="body"><span class="label rar">'+c.r+'</span><span class="nm">'+c.name+'</span>'+spark(c.v)+'</div>'+
-        (c.match? '<span class="chip cobalt flag">1 match</span>' : '')+
-        (c.id==='sleep' && S.granted && !S.stopped ? '<span class="chip sun flag" style="top:auto;bottom:118px">Lending</span>':'');
-      b.addEventListener('click', function(){ openDetail(c.id, b); });
-      if (c.r==='legendary' && !reduce) b.addEventListener('animationend', function(){ b.classList.add('flash'); }, {once:true});
+      b.type='button'; b.className='card '+t.r+(di>=0 && !reduce ? ' deal' : '');
+      if (di>=0) b.style.animationDelay = (di*80)+'ms';
+      b.setAttribute('aria-label', t.name+', '+t.r+', level '+top.level+(n ? ', '+n+' matching bount'+(n===1?'y':'ies') : ''));
+      b.innerHTML = art(t.art)+'<div class="body"><span class="label rar">'+t.r+'</span><span class="nm">'+t.name+'</span>'+
+        '<span class="meta mono">Week '+top.week+' · Lv '+top.level+(copies.length>1 ? ' · ×'+copies.length : '')+'</span></div>'+
+        (lending ? '<span class="chip sun flag">Lending</span>' : n ? '<span class="chip cobalt flag">'+n+' match</span>' : '')+
+        (di>=0 ? '<span class="chip flag new">New</span>' : '');
+      b.addEventListener('click', function(){ openDetail(t.name, null, b); });
+      if (t.r==='legendary' && di>=0 && !reduce) b.addEventListener('animationend', function(){ b.classList.add('flash'); }, {once:true});
       g.appendChild(b);
     });
   }
 
-  function openDetail(id, fromEl){
-    var c = CARDS.filter(function(x){return x.id===id})[0]; S.card = c;
-    var days = ['M','T','W','T','F','S','S'];
-    var lend = (id==='sleep' && S.granted);
-    var h = '<div class="dhero '+c.r+'" id="dhero">'+art(id).replace('viewBox="0 0 168 112"','viewBox="0 0 168 100"')+
-      '<div class="body"><div class="topline"><span class="label" style="color:var(--ink-muted)">'+c.r+' · week 38</span>'+
-      (lend ? (S.stopped?'<span class="chip danger">Revoked</span>':'<span class="chip sun stamp">Lending</span>') : '')+'</div>'+
-      '<h2 class="display-l">'+c.name+'</h2><p style="margin:0" class="muted">'+c.rule+'</p>'+
-      '<div class="week">'+c.v.map(function(x,i){return '<div><i style="height:'+x*.62+'px"></i><span>'+days[i]+'</span></div>'}).join('')+'</div></div></div>'+
-      '<div class="why" id="why"><button type="button" aria-expanded="false" aria-controls="whyAns">Why this card?<span aria-hidden="true">+</span></button><div class="ans" id="whyAns"><div><p>'+c.why+'</p></div></div></div>';
-    if (id==='sleep' && !S.granted){
-      h += '<div class="match rise" style="animation-delay:260ms"><div><span class="chip cobalt">1 matching bounty</span><div style="margin-top:6px"><b>Trinity Sleep Lab</b> · <span class="mono">0.60 USDC/day</span></div></div><button class="btn primary small" type="button" id="seeBounty">View</button></div>';
-    }
-    if (lend){ h += grantPanel(); }
+  /* card detail: one exact copy (week and level), "Why this card?", and the requests that want it */
+  function openDetail(name, copyId, fromEl){
+    var t = typeOf(name), copies = copiesOf(name);
+    if (!t || !copies.length) return;
+    var keep = S.card && S.card.name===name ? S.card.id : null;
+    var c = copies.filter(function(x){ return x.id===(copyId||keep); })[0] || copies[copies.length-1];
+    S.card = c;
+    var g = S.g, mine = g && g.card.id===c.id;
+    var h = '<div class="dhero '+t.r+'" id="dhero">'+art(t.art).replace('viewBox="0 0 168 112"','viewBox="0 0 168 100"')+
+      '<div class="body"><div class="topline"><span class="label" style="color:var(--ink-muted)">'+t.r+' · week '+c.week+' · level '+c.level+'</span>'+
+      (mine ? (g.stopped ? '<span class="chip danger">Revoked</span>' : g.done ? '<span class="chip mint">Complete</span>' : '<span class="chip sun stamp">Lending</span>') : '')+'</div>'+
+      '<h2 class="display-l">'+esc(c.name)+'</h2><p style="margin:0" class="muted">'+t.rule+'</p>'+
+      (copies.length>1 ? '<div class="copies" role="group" aria-label="Choose a week">'+copies.map(function(x){
+        return '<button class="btn small'+(x.id===c.id?' primary':'')+'" type="button" data-copy="'+x.id+'" aria-pressed="'+(x.id===c.id)+'">Week '+x.week+' · Lv '+x.level+'</button>';
+      }).join('')+'</div>' : '')+
+      '</div></div>'+
+      '<div class="why" id="why"><button type="button" aria-expanded="false" aria-controls="whyAns">Why this card?<span aria-hidden="true">+</span></button><div class="ans" id="whyAns"><div><p>'+esc(c.whyThisCard)+' Cards come only from these published rules; nothing else about you is inferred.</p></div></div></div>';
+    h += mine ? grantPanel() : matchPanel(c);
     $('detailBody').innerHTML = h;
     show('sDetail');
     var why = $('why');
     why.querySelector('button').addEventListener('click', function(){ var o = why.classList.toggle('open'); this.setAttribute('aria-expanded', o); this.lastChild.textContent = o?'–':'+'; });
-    if ($('seeBounty')) $('seeBounty').addEventListener('click', function(){ setStep(5); renderBounties(); show('sBounties'); });
-    if (lend) wireGrant();
-    setStep(id==='sleep' && !S.granted ? 4 : 3);
+    Array.prototype.forEach.call($('detailBody').querySelectorAll('[data-copy]'), function(btn){
+      btn.addEventListener('click', function(){ openDetail(name, btn.getAttribute('data-copy')); });
+    });
+    Array.prototype.forEach.call($('detailBody').querySelectorAll('[data-bounty]'), function(btn){
+      btn.addEventListener('click', function(){ setStep(5); renderBounties(); show('sBounties'); });
+    });
+    if (mine) wireGrant();
+    setStep(!mine && matchesFor(name).some(canLend) ? 4 : 3);
     // shared-element transition from the tapped card
-    if (fromEl && !reduce){
+    if (fromEl && !reduce && $('dhero').animate){
       var a = fromEl.getBoundingClientRect(), hero = $('dhero'), b = hero.getBoundingClientRect();
-      var sx = a.width/b.width, dx = a.left-b.left, dy = a.top-b.top;
-      hero.animate([{transform:'translate('+dx+'px,'+dy+'px) scale('+sx+')'},{transform:'none'}],{duration:420,easing:'cubic-bezier(.3,1.4,.5,1)'});
+      if (b.width > 0){
+        var sx = a.width/b.width, dx = a.left-b.left, dy = a.top-b.top;
+        hero.animate([{transform:'translate('+dx+'px,'+dy+'px) scale('+sx+')'},{transform:'none'}],{duration:420,easing:'cubic-bezier(.3,1.4,.5,1)'});
+      }
     }
   }
 
-  function grantPanel(){
-    if (S.stopped){
-      return '<div class="grant rise"><div class="row"><b>Trinity Sleep Lab</b><span class="chip danger">Revoked</span></div><p style="margin:0" class="muted">You stopped sharing. Future batches and payments are off. '+S.day+' batches were shared before you stopped; an erasure request was sent.</p><div class="row"><span class="muted">Earned from this grant</span><b class="mono">'+money(S.earned)+'</b></div></div>';
+  function matchPanel(c){
+    var list = matchesFor(c.name);
+    if (!list.length){
+      return '<div class="empty rise" style="animation-delay:200ms"><div class="shape"></div><div><b>No matching bounty yet</b><br><span class="muted">No study is asking for '+esc(c.name)+' right now. It stays in your deck; nothing is shared unless you choose to lend it.</span></div></div>';
     }
-    return '<div class="grant rise"><div class="row"><div><b>Trinity Sleep Lab</b><div class="muted" style="font-size:13px">30-day stream · day <span class="mono" id="gDay">'+S.day+'</span> of 30</div></div>'+
-      '<svg class="ring" viewBox="0 0 56 56" aria-label="Days left"><circle class="bg" cx="28" cy="28" r="23"/><circle class="fg" id="ringFg" cx="28" cy="28" r="23" stroke-dasharray="144.5" stroke-dashoffset="'+(144.5*S.day/30)+'"/></svg></div>'+
-      '<div class="row"><span class="muted">Time left</span><b class="mono" id="gLeft">'+(30-S.day)+'d 0h</b></div>'+
-      '<div class="row"><span class="muted">Earned so far</span><b class="mono" id="gEarn">'+money(S.earned)+'</b></div>'+
+    return '<span class="label muted">Research requests for this card</span>'+list.map(function(b, i){
+      var ok = canLend(b);
+      return '<div class="match rise" style="animation-delay:'+(260+i*60)+'ms"><div><span class="chip cobalt">Matching bounty</span>'+
+        '<div style="margin-top:6px"><b>'+esc(b.researcher)+'</b> · <span class="mono">'+price(b)+'</span></div>'+
+        '<div class="muted" style="font-size:13px">'+ACCESS[b.accessType]+(ok ? '' : ' · needs '+b.weeksWanted+' weeks of '+esc(b.cardWanted)+', you have '+copiesOf(b.cardWanted).length)+'</div></div>'+
+        '<button class="btn primary small" type="button" data-bounty="'+esc(b.id)+'"'+(ok ? '' : ' disabled')+'>View</button></div>';
+    }).join('');
+  }
+
+  function grantPanel(){
+    var g = S.g, b = g.bounty, stream = b.accessType==='stream_30d', single = b.accessType==='single_query';
+    var earnedRow = '<div class="row"><span class="muted">Earned from this grant</span><b class="mono" id="gEarn">'+money(g.earned)+'</b></div>';
+    if (g.stopped){
+      return '<div class="grant rise"><div class="row"><b>'+esc(b.researcher)+'</b><span class="chip danger">Revoked</span></div><p style="margin:0" class="muted">You stopped sharing. Future batches and payments are off. '+g.day+' batch'+(g.day===1?' was':'es were')+' shared before you stopped; an erasure request was sent.</p>'+earnedRow+'</div>';
+    }
+    if (g.done){
+      return '<div class="grant rise"><div class="row"><b>'+esc(b.researcher)+'</b><span class="chip mint">'+(single?'Answered':'Complete')+'</span></div><p style="margin:0" class="muted">'+
+        (single ? 'The study received one aggregate answer; no daily rows left the app. This grant has ended.' : 'All '+g.total+' batches were delivered. This grant has ended.')+'</p>'+earnedRow+'</div>';
+    }
+    return '<div class="grant rise"><div class="row"><div><b>'+esc(b.researcher)+'</b><div class="muted" style="font-size:13px">'+ACCESS[b.accessType]+
+      (stream ? ' · day <span class="mono" id="gDay">'+g.day+'</span> of 30' : ' · <span id="gDay">'+(g.day ? 'delivered' : 'waiting for the key request')+'</span>')+'</div></div>'+
+      (stream ? '<svg class="ring" viewBox="0 0 56 56" aria-label="Days left"><circle class="bg" cx="28" cy="28" r="23"/><circle class="fg" id="ringFg" cx="28" cy="28" r="23" stroke-dasharray="144.5" stroke-dashoffset="'+(144.5*g.day/30)+'"/></svg>' : '')+'</div>'+
+      (stream ? '<div class="row"><span class="muted">Time left</span><b class="mono" id="gLeft">'+(30-g.day)+'d 0h</b></div>' : '')+
+      earnedRow.replace('Earned from this grant','Earned so far')+
       '<div class="kill" id="kill"><svg id="killSvg" aria-hidden="true"><rect id="killRing" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" rx="6"/></svg>'+
       '<button class="btn danger" type="button" id="killBtn">Hold to stop sharing</button></div>'+
       '<p style="margin:0;font-size:13px" class="muted">Stops future access and payments now. Batches already shared can\'t be recalled.</p>'+
@@ -479,11 +603,11 @@ h1,h2,h3{margin:0;text-wrap:balance}
   }
 
   function wireGrant(){
-    if (S.stopped) return;
+    if (!grantBusy() || !$('killBtn')) return;
     var btn = $('killBtn'), ring = $('killRing'), anim = null;
-    requestAnimationFrame(function(){ var k = $('kill').getBoundingClientRect(), w = k.width+14, h = k.height+14;
-      $('killSvg').setAttribute('viewBox','0 0 '+w+' '+h); ring.setAttribute('x',2); ring.setAttribute('y',2); ring.setAttribute('width',w-4); ring.setAttribute('height',h-4); });
-    function start(e){ if (e) e.preventDefault(); setStep(11); btn.classList.add('pressed'); btn.textContent='Keep holding…';
+    requestAnimationFrame(function(){ if (!$('kill')) return; var k = $('kill').getBoundingClientRect(), w = k.width+14, h = k.height+14;
+      $('killSvg').setAttribute('viewBox','0 0 '+w+' '+h); ring.setAttribute('x',2); ring.setAttribute('y',2); ring.setAttribute('width',Math.max(0,w-4)); ring.setAttribute('height',Math.max(0,h-4)); });
+    function start(e){ if (e) e.preventDefault(); if (anim) return; setStep(11); btn.classList.add('pressed'); btn.textContent='Keep holding…';
       anim = ring.animate([{strokeDashoffset:100},{strokeDashoffset:0}],{duration:1200,easing:'linear',fill:'forwards'});
       anim.onfinish = function(){ stopSharing(); }; }
     function cancel(){ if (!anim || anim.playState==='finished') return; var a = anim; anim=null; a.onfinish=null; a.reverse(); btn.classList.remove('pressed'); btn.textContent='Hold to stop sharing'; }
@@ -498,60 +622,88 @@ h1,h2,h3{margin:0;text-wrap:balance}
     });
   }
 
-  /* bounties */
+  /* bounties: the real board; requests for cards you hold are marked and listed first */
   function renderBounties(){
     var L = $('bountyList'); L.innerHTML='';
-    BOUNTIES.forEach(function(b,i){
-      var el = document.createElement('button'); el.type='button'; el.className='bounty'+(b.m?' m':''); el.style.animationDelay=(i*40)+'ms';
-      el.innerHTML = '<span class="mk"></span><span class="mn">'+(b.m?'<span class="chip cobalt" style="align-self:flex-start">Matches your card</span>':'')+'<span class="nm">'+b.name+'</span><span class="meta">'+b.meta+'</span></span><span class="pr">'+b.pr+'<br><span class="label muted">'+b.u+'</span></span>';
-      el.addEventListener('click', function(){ if (b.m) openConsent(); else toast('<span>Only Trinity Sleep Lab is wired up in this prototype.</span>',2600); });
+    var score = function(b){ return (S.card && S.card.name===b.cardWanted ? 2 : 0) + (copiesOf(b.cardWanted).length ? 1 : 0); };
+    var list = DATA.bounties.slice().sort(function(a,b){ return score(b)-score(a); });
+    $('bCount').textContent = list.length+' open bount'+(list.length===1?'y':'ies');
+    list.forEach(function(b,i){
+      var held = copiesOf(b.cardWanted).length, ok = canLend(b);
+      var el = document.createElement('button'); el.type='button'; el.className='bounty'+(held?' m':''); el.style.animationDelay=(i*40)+'ms';
+      var meta = ORG[b.orgType]+' · '+esc(b.cardWanted)+(b.weeksWanted>1?', '+b.weeksWanted+' weeks':'')+' · '+ACCESS[b.accessType]+' · '+
+        (/^none/i.test(b.retention) ? 'aggregate only' : 'kept '+esc(b.retention))+(b.orgType==='commercial' ? ' · manual only' : '');
+      var chips = (held ? '<span class="chip '+(ok?'cobalt':'')+'" style="align-self:flex-start">'+(ok ? 'Matches your card' : 'Needs '+b.weeksWanted+' weeks')+'</span>' : '')+
+        (b.risk && b.risk.level ? ' <span class="chip" style="align-self:flex-start">'+esc(b.risk.level)+' risk</span>' : '');
+      el.innerHTML = '<span class="mk"></span><span class="mn">'+(chips ? '<span style="display:flex;gap:6px;flex-wrap:wrap">'+chips+'</span>' : '')+
+        '<span class="nm">'+esc(b.researcher)+'</span><span class="meta">'+meta+'</span></span>'+
+        '<span class="pr">'+b.priceUsdc.toFixed(2)+'<br><span class="label muted">'+(b.priceUnit==='per_day'?'USDC/day':'USDC once')+'</span></span>';
+      el.addEventListener('click', function(){
+        if (!held) toast('<span>Open your packs to find '+esc(b.cardWanted)+' first.</span>', 2800);
+        else if (!ok) toast('<span>This study needs '+b.weeksWanted+' weeks of '+esc(b.cardWanted)+'; you have '+held+'.</span>', 3200);
+        else openConsent(b);
+      });
       L.appendChild(el);
     });
   }
 
-  /* consent */
-  function openConsent(){
+  /* consent: the chosen bounty, the exact card copy, a labelled AI summary above the full notice */
+  function openConsent(b){
+    if (grantBusy()){ toast('<span>Stop sharing with '+esc(S.g.bounty.researcher)+' first: this demo runs one grant at a time.</span>', 3600); return; }
+    var copies = copiesOf(b.cardWanted);
+    var card = S.card && S.card.name===b.cardWanted ? S.card : copies[copies.length-1];
+    if (!card) return;
+    S.pending = {bounty:b, card:card};
+    var seq = ++S.consentSeq;
     setStep(6);
+    $('cTitle').textContent = 'Lend '+b.cardWanted+' to '+b.researcher;
+    $('cCard').textContent = 'Your '+card.name+' card · week '+card.week+' · level '+card.level;
+    $('fAccess').textContent = ACCESS[b.accessType]; $('fPays').textContent = price(b);
+    $('fRet').textContent = b.retention; $('fEthics').textContent = b.ethicsRef || 'None';
+    $('noticeText').textContent = b.fullNotice;
     $('scrim').classList.add('on'); $('consent').classList.add('on');
     var box = $('aiBox'); box.innerHTML = '<div class="stripes" aria-label="Summary loading"></div>';
-    var c = $('confirm'); c.disabled = true; c.innerHTML='Lend 30 days';
-    setTimeout(function(){
+    var c = $('confirm'); c.disabled = true; c.classList.remove('pressed'); c.textContent = lendLabel(b);
+    api('/api/explain', {bountyId:b.id}).then(function(r){ return r.body.summary || 'Summary unavailable. Read the full notice below.'; },
+      function(){ return 'Summary unavailable. Read the full notice below.'; })
+    .then(function(text){
+      if (seq !== S.consentSeq) return;
       box.innerHTML = '<p id="aiText"></p>'; var p = $('aiText');
-      if (reduce){ p.textContent = AI; c.disabled=false; return; }
-      var words = AI.split(' '), i = 0;
-      (function tick(){ p.textContent = words.slice(0, ++i).join(' '); if (i<words.length) setTimeout(tick, 28); else c.disabled=false; })();
-    }, reduce?100:700);
+      if (reduce){ p.textContent = text; c.disabled = false; return; }
+      var words = text.split(' '), i = 0;
+      (function tick(){ if (seq !== S.consentSeq) return; p.textContent = words.slice(0, ++i).join(' '); if (i<words.length) setTimeout(tick, 28); else c.disabled=false; })();
+    });
   }
-  function closeSheets(){ $('scrim').classList.remove('on'); $('consent').classList.remove('on'); $('stopped').classList.remove('on'); }
+  function closeSheets(){ S.consentSeq++; $('scrim').classList.remove('on'); $('consent').classList.remove('on'); $('stopped').classList.remove('on'); }
 
   function confirmGrant(){
+    var p = S.pending; if (!p) return;
     setStep(7);
     var c = $('confirm'); c.disabled = true; c.classList.add('pressed'); c.innerHTML = '<span class="spin" aria-hidden="true"></span>Opening grant…';
-    api('/api/cards').then(function(r){
-      var card = (r.body.cards||[]).filter(function(x){return x.name==='Deep Sleeper'})[0];
-      if (!card) throw new Error('No Deep Sleeper card in the sample data');
-      return api('/api/grants', {player:PLAYER, bountyId:BOUNTY, cardId:card.id});
-    }).then(function(g){
+    api('/api/grants', {player:PLAYER, bountyId:p.bounty.id, cardId:p.card.id}).then(function(g){
       if (g.status !== 201) throw new Error(g.body.error || ('grant failed ('+g.status+')'));
-      S.grantFull = g.body.grantId;
+      var id = g.body.grantId;
       c.classList.remove('pressed'); c.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" class="stamp"><path d="M4 12l5 5L20 6"/></svg>Grant open';
       setTimeout(function(){
-        closeSheets(); S.granted = true; S.grantId = S.grantFull.slice(0,4)+'…'+S.grantFull.slice(-4);
-        openDetail('sleep'); setStep(8);
-        researcherActive(); startStream();
+        closeSheets(); S.pending = null;
+        S.g = {id:id, short:id.slice(0,4)+'…'+id.slice(-4), bounty:p.bounty, card:p.card, total:p.bounty.accessType==='stream_30d' ? 30 : 1, day:0, earned:0, stopped:false, done:false};
+        openDetail(p.card.name, p.card.id); setStep(8);
+        researcherActive(S.g); startStream(S.g);
       }, 520);
     }).catch(function(e){
-      c.classList.remove('pressed'); c.disabled = false; c.innerHTML = 'Lend 30 days';
-      toast('<span>Could not open the grant: '+e.message+'</span>', 4000);
+      c.classList.remove('pressed'); c.disabled = false; c.textContent = lendLabel(p.bounty);
+      toast('<span>Could not open the grant: '+esc(e.message)+'</span>', 4000);
     });
   }
 
   /* researcher */
-  function researcherActive(){
+  function researcherActive(g){
+    $('rTitle').textContent = g.bounty.researcher;
+    $('rAccess').textContent = ACCESS[g.bounty.accessType];
     $('rStatus').className='chip mint stamp'; $('rStatus').textContent='Active';
-    $('rGrant').textContent = S.grantId;
-    $('rLine').innerHTML = '<span class="dot"></span><span>Grant active. Requesting the next batch key every 10 seconds (1 demo day).</span>';
-    var e = $('rEmpty'); if (e) e.remove();
+    $('rGrant').textContent = g.short; $('rCount').textContent = '0 / '+g.total; $('rPaid').textContent = money(0);
+    $('rLine').innerHTML = '<span class="dot"></span><span>'+(g.total>1 ? 'Grant active. Requesting the next batch key every 10 seconds (1 demo day).' : 'Grant active. Requesting the batch key.')+'</span>';
+    $('batches').innerHTML = '';
   }
   function scramble(el, finalText){
     if (reduce){ el.textContent = finalText; return; }
@@ -561,65 +713,81 @@ h1,h2,h3{margin:0;text-wrap:balance}
       el.textContent = out; if (n>14){ clearInterval(iv); el.textContent = finalText; }
     }, 30);
   }
-  function addBatch(){
-    var idx = S.day, grantId = S.grantFull;
-    return api('/api/keys/'+grantId+'/'+idx).then(function(k){
+  function addBatch(g){
+    if (S.g !== g || g.stopped || g.done) return;
+    var idx = g.day;
+    api('/api/keys/'+g.id+'/'+idx).then(function(k){
       if (k.status !== 200) { S.refusal = k.status+' · '+(k.body.error||'refused'); return; }
-      return decryptBatch(grantId, idx, k.body.key).then(function(rows){ showBatch(rows); });
+      return decryptBatch(g.id, idx, k.body.key).then(function(rows){ showBatch(g, rows); });
     }).catch(function(){ /* batch not delivered yet: the next tick retries */ });
   }
-  function showBatch(rows){
-    if (S.stopped) return;
-    S.day++;
-    var r0 = rows[0] || {};
+  function showBatch(g, rows){
+    if (S.g !== g || g.stopped || g.done) return;
+    var b = g.bounty, stream = b.accessType==='stream_30d', single = b.accessType==='single_query';
+    g.day++;
+    var pay = b.priceUsdc; g.earned += pay; S.earned += pay; syncEarn();
     var row = document.createElement('div'); row.className='batch';
-    row.innerHTML = '<span class="n">Day '+(S.day<10?'0':'')+S.day+'</span><span class="d"></span><span class="chip mint">Paid 0.60</span>';
+    row.innerHTML = '<span class="n">'+(stream ? 'Day '+pad(g.day) : single ? 'Answer' : 'Package')+'</span><span class="d"></span><span class="chip mint">Paid '+pay.toFixed(2)+'</span>';
     var list = $('batches'); Array.prototype.forEach.call(list.children, function(r){ r.classList.add('old'); });
     list.insertBefore(row, list.firstChild);
-    scramble(row.querySelector('.d'), r0.date+' · sleep '+r0.sleep_hours+'h · deep '+r0.deep_sleep_min+' min');
-    S.earned += .6; syncEarn();
-    $('rCount').textContent = S.day+' / 30'; $('rPaid').textContent = money(S.earned);
-    if ($('gDay')){ $('gDay').textContent = S.day; $('gLeft').textContent=(30-S.day)+'d 0h'; $('gEarn').textContent=money(S.earned); $('ringFg').setAttribute('stroke-dashoffset', 144.5*S.day/30); }
+    scramble(row.querySelector('.d'), fmtBatch(rows));
+    $('rCount').textContent = g.day+' / '+g.total; $('rPaid').textContent = money(g.earned);
+    if ($('gDay')) $('gDay').textContent = stream ? g.day : 'delivered';
+    if ($('gLeft')) $('gLeft').textContent = (30-g.day)+'d 0h';
+    if ($('gEarn')) $('gEarn').textContent = money(g.earned);
+    if ($('ringFg')) $('ringFg').setAttribute('stroke-dashoffset', 144.5*g.day/30);
+    if (single || g.day >= g.total && stream){
+      g.done = true; clearInterval(timer);
+      $('rStatus').className='chip'; $('rStatus').textContent = single ? 'Consumed' : 'Complete';
+      $('rLine').innerHTML = '<span class="dot off"></span><span>'+(single ? 'Answer delivered. A single-query grant ends after one key release; further requests are refused.' : 'All batches delivered. The grant has ended.')+'</span>';
+      if (!$('sDetail').hidden && S.card && S.card.id===g.card.id) openDetail(g.card.name, g.card.id);
+    } else if (!stream){
+      clearInterval(timer);
+      $('rLine').innerHTML = '<span class="dot"></span><span>Package delivered. Its key stays available for 24 hours unless the participant stops sharing.</span>';
+    }
     setStep(9);
-    var t = toast('<span class="amt">+0.00 USDC</span><span>Trinity Sleep Lab · day '+S.day+' of 30</span>');
-    countUp(t.querySelector('.amt'), .6);
+    var t = toast('<span class="amt">+0.00 USDC</span><span>'+esc(b.researcher)+' · '+(stream ? 'day '+g.day+' of 30' : single ? 'answer delivered' : 'package delivered')+'</span>');
+    countUp(t.querySelector('.amt'), pay);
     setTimeout(function(){ setStep(10); }, 700);
   }
-  function startStream(){
+  function startStream(g){
     clearInterval(timer);
-    setTimeout(function(){ if (S.granted && !S.stopped) addBatch(); }, 1200);
-    timer = setInterval(function(){
-      if (S.stopped){ clearInterval(timer); return; }
-      if (S.day >= 30){ clearInterval(timer); return; }
-      addBatch();
+    setTimeout(function(){ addBatch(g); }, 1200);
+    if (g.total > 1) timer = setInterval(function(){
+      if (S.g !== g || g.stopped || g.done || g.day >= g.total){ clearInterval(timer); return; }
+      addBatch(g);
     }, DAY_MS);
   }
-  function lockNext(){
+  function lockNext(g){
+    var stream = g.bounty.accessType==='stream_30d';
     var row = document.createElement('div'); row.className='batch locked';
-    row.innerHTML = '<span class="n">Day '+((S.day+1)<10?'0':'')+(S.day+1)+'</span><span class="d">a91f 3c07 ee42 b8d1 77c0</span><span class="lk"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><path d="M6 11h12v10H6zM8 11V7a4 4 0 018 0v4"/></svg>Access revoked by participant</span>';
+    row.innerHTML = '<span class="n">'+(stream ? 'Day '+pad(g.day+1) : 'Request')+'</span><span class="d">a91f 3c07 ee42 b8d1 77c0</span><span class="lk"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><path d="M6 11h12v10H6zM8 11V7a4 4 0 018 0v4"/></svg>Access revoked by participant</span>';
     var list = $('batches'); Array.prototype.forEach.call(list.children, function(r){ r.classList.add('old'); });
     list.insertBefore(row, list.firstChild);
-    $('rLine').innerHTML = '<span class="dot red"></span><span>Key request refused ('+(S.refusal||'403')+'). The participant revoked this grant; unreleased keys were destroyed.</span>';
+    $('rLine').innerHTML = '<span class="dot red"></span><span>Key request refused ('+esc(S.refusal||'403')+'). The participant revoked this grant; unreleased keys were destroyed.</span>';
     setStep(13);
     if (window.innerWidth <= 920) setView('researcher');
   }
 
   /* stop */
   function stopSharing(){
-    if (S.stopped) return;
-    S.stopped = true; setStep(12);
+    var g = S.g;
+    if (!g || g.stopped || g.done) return;
+    g.stopped = true; setStep(12);
     $('rStatus').className='chip danger stamp'; $('rStatus').textContent='Revoked';
-    $('rLine').innerHTML = '<span class="dot red"></span><span>Grant revoked on-chain. Next key request will be refused.</span>';
-    $('keysLeft').textContent = 30 - S.day; $('sharedN').textContent = S.day;
+    $('rLine').innerHTML = '<span class="dot red"></span><span>Grant revoked. The next key request will be refused.</span>';
+    $('stopWho').textContent = 'Future batches and payments from '+g.bounty.researcher+'.';
+    $('keysLeft').textContent = g.total - g.day; $('sharedN').textContent = g.day;
+    $('revokeTx').textContent = '…';
     $('scrim').classList.add('on'); $('stopped').classList.add('on');
     clearInterval(timer);
     api('/api/revoke', {player:PLAYER}).then(function(r){
       if (typeof r.body.keysDestroyed === 'number') $('keysLeft').textContent = r.body.keysDestroyed;
       if (r.body.tx) $('revokeTx').textContent = r.body.tx;
       // The researcher asks for the next batch key; the key API must refuse it now.
-      return api('/api/keys/'+S.grantFull+'/'+S.day);
-    }).then(function(k){ S.refusal = k.status+' · '+(k.body.error||'refused'); setTimeout(lockNext, 1000); })
-      .catch(function(){ setTimeout(lockNext, 1000); });
+      return api('/api/keys/'+g.id+'/'+g.day);
+    }).then(function(k){ S.refusal = k.status+' · '+(k.body.error||'refused'); setTimeout(function(){ lockNext(g); }, 1000); })
+      .catch(function(){ setTimeout(function(){ lockNext(g); }, 1000); });
   }
 
   function setView(v){
@@ -630,34 +798,41 @@ h1,h2,h3{margin:0;text-wrap:balance}
   function reset(){
     clearInterval(timer);
     api('/api/demo/reset', {});
-    S = {step:0, granted:false, stopped:false, day:0, earned:0, card:null};
+    S = {step:0, opened:[], card:null, g:null, pending:null, earned:0, refusal:null, consentSeq:0};
     var p = $('progress'); p.innerHTML = STEPS.map(function(){return '<i></i>'}).join('');
     setStep(1); syncEarn(); closeSheets(); $('toasts').innerHTML='';
     $('adult').checked=false; $('start').disabled=true;
-    $('packWrap').hidden=false; $('pack').classList.remove('tearing'); $('cardGrid').hidden=true; $('deckHint').hidden=true;
-    $('rStatus').className='chip'; $('rStatus').textContent='Waiting'; $('rGrant').textContent='—'; $('rCount').textContent='0 / 30'; $('rPaid').textContent='0.00 USDC';
-    $('rLine').innerHTML='<span class="dot off"></span><span>No active grant. Requests are refused until a participant lends Deep Sleeper.</span>';
+    $('rTitle').textContent='No grant yet'; $('rAccess').textContent='—';
+    $('rStatus').className='chip'; $('rStatus').textContent='Waiting'; $('rGrant').textContent='—'; $('rCount').textContent='—'; $('rPaid').textContent='0.00 USDC';
+    $('rLine').innerHTML='<span class="dot off"></span><span>No active grant. Requests are refused until a participant lends a card.</span>';
     $('batches').innerHTML='<div class="empty" id="rEmpty"><div class="shape"></div><div><b>No data yet</b><br><span class="muted">Batches appear here one per day, decrypted only while the participant\'s grant is active.</span></div></div>';
+    renderDeck();
     setView('player'); show('sOnboard');
   }
 
   $('adult').addEventListener('change', function(){ $('start').disabled = !this.checked; });
-  $('start').addEventListener('click', function(){ setStep(2); show('sDeck'); });
+  $('start').addEventListener('click', function(){ setStep(2); renderDeck(); show('sDeck'); });
   $('openPack').addEventListener('click', function(){
-    var pk = $('pack'); pk.classList.add('tearing');
-    setTimeout(function(){ $('packWrap').hidden=true; $('cardGrid').hidden=false; $('deckHint').hidden=false; renderGrid(); }, reduce?60:380);
+    var next = nextPack(); if (!next) return;
+    this.disabled = true;
+    $('pack').classList.add('tearing');
+    setTimeout(function(){
+      S.opened.push(next.week);
+      renderDeck(next.cards.map(function(c){ return c.name; }));
+    }, reduce?60:380);
   });
-  $('backDeck').addEventListener('click', function(){ show('sDeck'); if (!$('cardGrid').hidden) renderGrid(); });
-  $('backDetail').addEventListener('click', function(){ openDetail('sleep'); });
+  $('backDeck').addEventListener('click', function(){ renderDeck(); show('sDeck'); });
+  $('backDetail').addEventListener('click', function(){ if (S.card) openDetail(S.card.name, S.card.id); else { renderDeck(); show('sDeck'); } });
   $('confirm').addEventListener('click', confirmGrant);
   $('cancel').addEventListener('click', closeSheets);
   $('scrim').addEventListener('click', function(){ if ($('consent').classList.contains('on')) closeSheets(); });
-  $('done').addEventListener('click', function(){ closeSheets(); openDetail('sleep'); });
+  $('done').addEventListener('click', function(){ closeSheets(); if (S.g) openDetail(S.g.card.name, S.g.card.id); });
   $('restart').addEventListener('click', reset);
   $('vPlayer').addEventListener('click', function(){ setView('player'); });
   $('vResearcher').addEventListener('click', function(){ setView('researcher'); });
   document.addEventListener('keydown', function(e){ if (e.key==='Escape' && $('consent').classList.contains('on')) closeSheets(); });
   reset();
+  load();
 })();
 </script>
 
