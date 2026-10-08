@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { recordAccess } from "@/lib/accessLog";
 import { checkKeyAccess } from "@/lib/grantAccess";
 import { grantBackend } from "@/lib/grants";
 import { payoutBatch } from "@/lib/solana/payout";
@@ -28,6 +29,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ grantId
   if (access.grant.accessType === "single_query") await backend.consumeGrant(grantId);
   // Pays the player for this batch (FR-7). A failed transfer never blocks the key; the next request retries it.
   const payout = await payoutBatch(access.grant, batch).catch(() => null);
+  recordAccess(access.grant, batch, payout?.signature ?? null);
   const body: KeyRelease = { grantId, batch, key: key.toString("base64"), payoutSig: payout?.signature };
   return NextResponse.json(body);
 }

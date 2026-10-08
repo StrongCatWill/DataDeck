@@ -7,6 +7,7 @@ import { POST as revoke } from "@/app/api/revoke/route";
 import PrivacyPage from "@/app/privacy/page";
 import { generateCards } from "../cards";
 import { loadSampleRows } from "../csv";
+import { explorerUrl, listAccess } from "../accessLog";
 import { erasureLog, grantBackend } from "../grants";
 import { getRules, saveRuleset } from "../rulesStore";
 import { DEMO_RULE } from "../rules";
@@ -54,6 +55,26 @@ describe("/privacy page", () => {
     expect(html).not.toContain("No erasure requests yet");
   });
 
+  it("shows a receipt per opened batch with the payout and the total paid", async () => {
+    const grantId = await lend("p-receipt");
+    expect((await key(grantId, 0)).status).toBe(200);
+    expect((await key(grantId, 0)).status).toBe(200); // a repeated request is logged but paid once
+    expect(listAccess("p-receipt")).toHaveLength(2);
+    expect(listAccess("p-receipt")[0]).toMatchObject({ grantId, batch: 0, payoutSig: expect.stringMatching(/^sim-/) });
+
+    const html = await privacyHtml("p-receipt");
+    expect(html).toContain("Access and payment receipts");
+    expect(html).toContain("simulated");
+    expect(html).toContain("already paid");
+    expect(html).not.toContain("No batches opened yet");
+    expect(listAccess("p-nobody")).toEqual([]);
+  });
+
+  it("links only real devnet payouts to the Explorer", () => {
+    expect(explorerUrl("sim-abc-0-1")).toBeNull();
+    expect(explorerUrl("5xYz")).toBe("https://explorer.solana.com/tx/5xYz?cluster=devnet");
+  });
+
   it("shows only this player's grants", async () => {
     await lend("p-other");
     expect(await privacyHtml("p-nobody")).toContain("No grants yet");
@@ -63,6 +84,7 @@ describe("/privacy page", () => {
 describe("POST /api/demo/reset", () => {
   it("clears grants, keys, rules and the erasure log", async () => {
     const grantId = await lend("p-reset");
+    await key(grantId, 0);
     await revoke(post({ player: "p-reset" }));
     saveRuleset("p-reset", DEMO_RULE);
 
@@ -73,6 +95,7 @@ describe("POST /api/demo/reset", () => {
     expect(await grantBackend().readGrant(grantId)).toBeNull();
     expect(getBatches(grantId)).toEqual([]);
     expect(erasureLog).toHaveLength(0);
+    expect(listAccess("p-reset")).toEqual([]);
     expect(getRules("p-reset")).toBeUndefined();
     expect(await privacyHtml("p-reset")).toContain("No grants yet");
   });
