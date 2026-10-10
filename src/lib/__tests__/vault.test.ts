@@ -19,7 +19,7 @@ describe("vault", () => {
     expect(getBatches("g-roundtrip")).toEqual(sealed);
     sealed.forEach((b, i) => {
       expect(b.ciphertext).not.toContain("steps");
-      expect(decrypt(b, releaseKey("g-roundtrip", i)!)).toEqual(days[i]);
+      expect(decrypt(b, releaseKey("g-roundtrip", i)!)).toEqual(days[i].map((r) => ({ ...r, trace_id: expect.any(String) })));
     });
   });
 
