@@ -9,6 +9,7 @@ interface Stores {
   __dataDeckGrantIndex?: Map<unknown, unknown>;
   __dataDeckPayouts?: Map<unknown, unknown>;
   __dataDeckExplain?: Map<unknown, unknown>;
+  __dataDeckAccessLog?: unknown[];
 }
 
 export function resetDemoState(): { grants: number; keysDestroyed: number } {
@@ -37,6 +38,7 @@ export function resetDemoState(): { grants: number; keysDestroyed: number } {
   g.__dataDeckGrantIndex?.clear();
   g.__dataDeckPayouts?.clear();
   g.__dataDeckExplain?.clear();
+  if (g.__dataDeckAccessLog) g.__dataDeckAccessLog.length = 0;
 
   return { grants, keysDestroyed };
 }
