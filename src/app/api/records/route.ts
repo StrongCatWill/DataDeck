@@ -46,6 +46,7 @@ export async function GET(req: Request) {
       grantId: p.grantId,
       batch: p.batch,
       amountUsdc: usdc(p.amount),
+      feeUsdc: usdc(p.fee),
       signature: p.signature,
       mode: p.mode,
       paidAt: p.paidAt,

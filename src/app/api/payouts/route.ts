@@ -11,5 +11,6 @@ export async function GET(req: Request) {
 
   const payouts = await listPayouts({ player, grantId });
   const total = payouts.reduce((sum, p) => sum + p.amount, 0);
-  return NextResponse.json({ mode: payoutMode(), totalUsdc: total / 10 ** USDC_DECIMALS, payouts });
+  const fees = payouts.reduce((sum, p) => sum + p.fee, 0);
+  return NextResponse.json({ mode: payoutMode(), totalUsdc: total / 10 ** USDC_DECIMALS, feesUsdc: fees / 10 ** USDC_DECIMALS, payouts });
 }

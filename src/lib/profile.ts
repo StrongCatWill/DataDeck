@@ -1,4 +1,6 @@
 import { randomBytes } from "node:crypto";
+import { isRiskLevel } from "./risk";
+import type { RiskLevel } from "./types";
 
 // The player's app account: sign-in, age check, data sources, goals, settings, game progress, notifications and
 // cash-outs. In server memory like the grant and key stores (a demo; production needs a database).
@@ -49,6 +51,8 @@ export interface Profile {
   types: { sleep: boolean; steps: boolean; heart: boolean };
   goals: { steps: number; sleep: number };
   settings: Record<string, boolean>;
+  /** Bounty feed filter (pitch slide 8): requests labelled above this are hidden. */
+  riskTolerance: RiskLevel;
   level: number;
   xp: number;
   streak: number;
@@ -87,6 +91,7 @@ function fresh(player: string): Profile {
     types: { sleep: true, steps: true, heart: true },
     goals: { steps: 6000, sleep: 8 },
     settings: { haptics: true, reduce: false, payout: true, pack: true, bedtime: true, quests: true, studies: false },
+    riskTolerance: "High",
     level: 1,
     xp: 0,
     streak: 0,
@@ -174,6 +179,13 @@ export function setGoals(player: string, goals: { steps?: number; sleep?: number
 export function setSettings(player: string, settings: Record<string, unknown>): Profile {
   const p = verified(player);
   for (const [k, v] of Object.entries(settings)) if (k in p.settings && typeof v === "boolean") p.settings[k] = v;
+  return p;
+}
+
+export function setTolerance(player: string, level: unknown): Profile {
+  const p = verified(player);
+  if (!isRiskLevel(level)) throw new ProfileError("Risk tolerance must be Low, Medium or High");
+  p.riskTolerance = level;
   return p;
 }
 

@@ -45,6 +45,12 @@ describe("/api/me account", () => {
     expect((await me({ player: "p-set", action: "details", color: "red" })).status).toBe(400);
   });
 
+  it("saves the risk tolerance for the bounty feed", async () => {
+    await adult("p-tol");
+    expect((await json(await me({ player: "p-tol", action: "tolerance", level: "Low" }))).body.profile.riskTolerance).toBe("Low");
+    expect((await me({ player: "p-tol", action: "tolerance", level: "Extreme" })).status).toBe(400);
+  });
+
   it("rejects an unknown action", async () => {
     await adult("p-act");
     expect((await me({ player: "p-act", action: "hack" })).status).toBe(400);
