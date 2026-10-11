@@ -26,7 +26,7 @@ describe("GET /api/keys/[grantId]/[batch]", () => {
     const decipher = createDecipheriv("aes-256-gcm", Buffer.from(body.key, "base64"), Buffer.from(b.iv, "base64"));
     decipher.setAuthTag(Buffer.from(b.authTag, "base64"));
     const plain = Buffer.concat([decipher.update(Buffer.from(b.ciphertext, "base64")), decipher.final()]);
-    expect(JSON.parse(plain.toString())).toEqual([{ day: 2 }]);
+    expect(JSON.parse(plain.toString())).toEqual([{ day: 2, trace_id: expect.stringMatching(/^dd-[0-9a-f]{16}$/) }]);
   });
 
   it("returns 403 after revocation and shreds unreleased keys", async () => {
