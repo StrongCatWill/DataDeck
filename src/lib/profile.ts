@@ -100,6 +100,17 @@ function fresh(player: string): Profile {
   };
 }
 
+// The demo player starts mid-game, as in the pitch: level 3 with 330 XP and a 5-day streak that ran up to
+// yesterday, so the first pack and one quest reach level 4. Every other player starts at level 1.
+export const DEMO_PLAYER = "demo-player";
+function demoStart(p: Profile): Profile {
+  p.level = 3;
+  p.xp = 330;
+  p.streak = 5;
+  p.lastQuestDay = today(Date.now() - 86_400_000);
+  return p;
+}
+
 export const getProfile = (player: string): Profile | null => store.get(player) ?? null;
 
 function need(player: string): Profile {
@@ -111,7 +122,7 @@ function need(player: string): Profile {
 export const levelName = (level: number) => LEVELS[Math.min(level, LEVELS.length) - 1];
 
 export function signIn(player: string, provider: string, name?: string): Profile {
-  const p = store.get(player) ?? fresh(player);
+  const p = store.get(player) ?? (player === DEMO_PLAYER ? demoStart(fresh(player)) : fresh(player));
   p.provider = provider;
   p.signedIn = true;
   if (name) p.name = name.slice(0, 40);

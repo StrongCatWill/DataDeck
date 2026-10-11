@@ -650,9 +650,39 @@ const api = (path, body) => fetch(path, body === undefined ? {} : {method:'POST'
   .then(r => r.json().catch(() => ({})).then(j => ({status:r.status, body:j})));
 const shortRef = x => x ? (x.length > 14 ? x.slice(0, 6) + '…' + x.slice(-4) : x) : '';
 let SERVER_CARDS = [];
-api('/api/cards').then(r => { SERVER_CARDS = (r.body && r.body.cards) || []; }).catch(() => {});
 function cardIdFor(name){ const c = SERVER_CARDS.find(x => x.name === name); return c ? c.id : null; }
 const records = () => api('/api/records?player=' + encodeURIComponent(PLAYER)).then(r => r.status === 200 ? r.body : null, () => null);
+// The account lives on the server (/api/me): sign-in, 18+, sources, goals, settings, XP, quests, notifications, cash-outs.
+const WEEK = 41;
+const me = (action, extra) => api('/api/me', Object.assign({player:PLAYER, action}, extra || {}));
+const NOTE_BG = {steps:'var(--steps)', flame:'#F0633E', cards:'var(--sleep)', trophy:'var(--gold)', bank:'var(--steps)', school:'var(--sky)', coin:'var(--gold)', run:'var(--steps)'};
+function fromProfile(p){ S.name = p.name; S.color = p.color; if (p.birthYear) S.year = p.birthYear; S.src = Object.assign({}, p.sources); S.goals = Object.assign({}, p.goals); S.set = Object.assign({}, p.settings);
+  S.level = p.level; S.xp = p.xp; S.streak = p.streak; S.cashed = p.cashedOutUsdc; S.opened = p.packsOpened.indexOf(WEEK) >= 0;
+  S.q = {steps:p.questsToday.indexOf('steps') >= 0, sleep:p.questsToday.indexOf('sleep') >= 0}; if (S.q.steps) S.steps = Math.max(S.steps, S.goals.steps);
+  S.notifs = p.notifications.map(n => ({icon:n.icon, bg:NOTE_BG[n.icon] || 'var(--sleep)', t:n.title, s:n.body, act:n.act, un:!n.read})); phone.classList.toggle('rm', !!S.set.reduce); }
+// XP comes from the server so the once-a-day and once-a-week rules hold; the bar and the level-up follow its answer.
+function earn(action, extra){ return me(action, extra).then(r => { const p = r.body.profile; if (r.status !== 200 || !p) return r.body;
+  const up = p.level > S.level; S.level = p.level; S.xp = p.xp; S.streak = p.streak;
+  const b = $('xpBar'); if (b){ b.style.width = (S.xp / 4) + '%'; const t = $('xpTxt'); if (t) t.textContent = xpText(); }
+  if (up) setTimeout(levelUp, 900); return r.body; }); }
+const saved = r => { if (r.status !== 200) toast(`${ic('x',20)}<span>${esc(r.body.error || 'Not saved')}</span>`, 3200); return r; };
+// Loans already running on the server come back after a reload, with their payouts in the activity log.
+function resumeLoans(rec){ S.earned = rec.totalPaidUsdc;
+  rec.grants.forEach(g => { if (g.bountyId === SERVER_ID.tcd){ S.granted = true; S.grantId = g.grantId; S.day = g.batchesOpened; S.stopped = g.status !== 'Active'; }
+    else if (g.bountyId === SERVER_ID.ai){ S.answered = true; S.answerGrant = g.grantId; } });
+  S.log = rec.payouts.map(p => ({t:p.grantId === S.answerGrant ? 'One answer sent to Active Ireland.' : 'Day ' + (p.batch + 1) + ' sent to Trinity Sleep Lab.', kind:'', amt:p.amountUsdc, at:p.grantId === S.answerGrant ? 'Now' : 'Day ' + (p.batch + 1), grant:p.grantId, sig:p.signature, get ref(){ return shortRef(this.sig || this.grant) || 'pending'; }}));
+  if (S.granted && !S.stopped) startStream(); }
+// Charts and card numbers come from the sample CSV behind the cards (/api/stats), latest week first.
+const hoursOf = hm => { const t = hm.split(':'); return +t[0] + t[1] / 60; };
+function loadStats(){ return Promise.all([api('/api/stats'), api('/api/cards')]).then(([st, cd]) => { const weeks = (st.body && st.body.weeks) || []; if (!weeks.length) return;
+  SERVER_CARDS = (cd.body && cd.body.cards) || SERVER_CARDS; const last = weeks[weeks.length - 1].days;
+  WSLEEP = last.slice(0, 5).map(d => d.sleep_hours); WSTEPS = last.slice(0, 4).map(d => d.steps / 1000); WHR = last.slice(0, 5).map(d => d.resting_hr);
+  const weekOf = name => { const c = SERVER_CARDS.filter(x => x.name === name).pop(); const w = c && weeks.find(x => x.week === c.week); return c && w ? {c, days:w.days} : null; };
+  const set = (id, name, fill) => { const m = weekOf(name), card = CARDS.find(x => x.id === id); if (m && card){ fill(card, m.days); card.why[0] = m.c.whyThisCard; } };
+  set('early', 'Early Bird', (c, d) => { c.v = d.map(x => hoursOf(x.wake_time)); c.stat = c.v.filter(c.hit).length + ' of 7'; c.why[1] = 'Earliest wake-up ' + hm(Math.min.apply(null, c.v)); });
+  set('sleep', 'Deep Sleeper', (c, d) => { c.v = d.map(x => x.sleep_hours); const avg = c.v.reduce((a, b) => a + b, 0) / 7; c.stat = avg.toFixed(1) + ' h'; c.why[1] = 'Average ' + avg.toFixed(1) + ' hours a night'; });
+  set('marathon', 'Marathon Week', (c, d) => { c.v = d.map(x => x.steps / 1000); c.stat = num(d.reduce((a, x) => a + x.steps, 0)); c.why[1] = 'Best day ' + num(Math.max.apply(null, d.map(x => x.steps))) + ' steps'; });
+  set('perfect', 'Perfect Week', () => {}); }).catch(() => {}); }
 const esc = x => String(x == null ? '' : x).replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
 const when = unix => unix ? new Date(unix * 1000).toLocaleString() : '-';
 const statusPill = st => `<span class="pill ${st === 'Active' ? 'gold' : st === 'Revoked' ? 'red' : 'solid'}">${st}</span>`;
@@ -674,7 +704,7 @@ const INTRO = [
 const LEVELS = ['Rookie','Walker','Night Owl','Pacer','Legend'];
 const lvlName = n => LEVELS[Math.min(n - 1, 4)];
 const HOURS = [0,0,1,3,6,4,8,10,5,7,3,0];
-const WSTEPS = [6.4,7.9,6.1,8.8], WSLEEP = [8.1,7.6,8.4,8.0,8.3], WHR = [58,57,56,55,56];
+let WSTEPS = [6.4,7.9,6.1,8.8], WSLEEP = [8.1,7.6,8.4,8.0,8.3], WHR = [58,57,56,55,56]; // design values until /api/stats answers
 const COLORS = ['#6C4DF5','#12A562','#F03E5F','#1B8FE8','#F0633E'];
 
 /* ---------- shell ---------- */
@@ -694,12 +724,9 @@ function confetti(){ if (reduce()) return; const c = document.createElement('div
 function faceId(done){ const f = document.createElement('div'); f.className = 'faceid'; f.innerHTML = `<div><i>${ic('user',30)}</i><span>Face ID</span></div>`; phone.appendChild(f);
   setTimeout(() => { const i = f.querySelector('i'); i.className = 'ok'; i.innerHTML = ic('check', 30); buzz([10,40,10]); }, 650);
   setTimeout(() => { f.remove(); done(); }, 1250); }
-function notify(icon, bg, t, s, act){ S.notifs.unshift({icon, bg, t, s, act, un:true}); const b = $('bell'); if (b) b.innerHTML = ic('bell', 22) + bellCount(); }
+function notify(icon, bg, t, s, act){ S.notifs.unshift({icon, bg, t, s, act, un:true}); me('notify', {icon, title:t, body:s, act}).catch(() => {}); const b = $('bell'); if (b) b.innerHTML = ic('bell', 22) + bellCount(); }
 const bellCount = () => { const n = S.notifs.filter(x => x.un).length; return n ? `<em>${n}</em>` : ''; };
 function xpText(){ return `${400 - S.xp} XP to ${S.level >= 5 ? 'your next star' : lvlName(S.level + 1)}`; }
-function addXp(n){ S.xp += n; let up = false; while (S.xp >= 400){ S.xp -= 400; S.level++; up = true; }
-  const b = $('xpBar'); if (b){ b.style.width = (S.xp / 4) + '%'; const t = $('xpTxt'); if (t) t.textContent = xpText(); }
-  if (up) setTimeout(levelUp, 900); }
 function levelUp(){ stage('level'); notify('trophy', 'var(--gold)', 'Level ' + S.level + ': ' + lvlName(S.level), 'Levels are for fun and never change what a study pays', 'sheet:levels');
   const o = document.createElement('div'); o.className = 'lvlup'; o.id = 'lvlup';
   o.innerHTML = `<div class="rays"></div><div class="spin3"><div class="lvl3 xl"><i></i><b>${S.level}</b></div></div><p class="b" style="opacity:.8">Level up</p><h2 class="d1">${lvlName(S.level)}</h2><p style="opacity:.85;max-width:280px">You earned it by walking, sleeping and collecting. Levels are for fun: every player gets the same price from a study.</p><button class="btn wide" type="button" data-act="lvlClose" style="max-width:280px">Keep going</button>`;
@@ -728,7 +755,7 @@ function ring(pct, col, track, id){ const c = 2 * Math.PI * 52, p = Math.min(1, 
 function updSteps(){ const n = $('stepN'); if (!n) return; n.textContent = num(S.steps); const l = $('stepLeft'); if (l) l.textContent = S.steps >= S.goals.steps ? 'Goal reached' : num(S.goals.steps - S.steps) + ' to go';
   const r = $('stepRing'); if (r){ const c = 2 * Math.PI * 52, p = Math.min(1, S.steps / S.goals.steps), a = p * 2 * Math.PI; r.setAttribute('stroke-dashoffset', c * (1 - p)); const cap = $('stepRingCap'); cap.setAttribute('cx', 60 + 52 * Math.cos(a)); cap.setAttribute('cy', 60 + 52 * Math.sin(a)); } }
 function tickSteps(){ if (!S.onb) return; S.steps += 7 + (S.steps % 5); updSteps(); checkQuests(); }
-function checkQuests(){ if (!S.onb) return; if (!S.q.steps && S.steps >= S.goals.steps){ S.q.steps = true; addXp(30); buzz([10,40,10]); toast(`${ic('bolt',20)}<span>Step goal reached. <b>+30 XP</b></span>`);
+function checkQuests(){ if (!S.onb) return; if (!S.q.steps && S.steps >= S.goals.steps){ S.q.steps = true; earn('quest', {quest:'steps'}); buzz([10,40,10]); toast(`${ic('bolt',20)}<span>Step goal reached. <b>+30 XP</b></span>`);
     notify('steps', 'var(--steps)', 'Step goal reached', '+30 XP for today\'s quest', 'go:today:steps'); if (S.tab === 'today' && !S.view) setTimeout(rerender, 300); } }
 
 /* ---------- onboarding ---------- */
@@ -814,7 +841,7 @@ function heartView(anim){ const has = S.src.health || S.src.sample;
   setScr(head() + `<h2 class="d2">Resting heart rate</h2><div class="tile heart" style="cursor:default"><span class="k" style="color:var(--heart-d)">${ic('heart',18)}This morning</span><span class="num" style="font-size:38px;line-height:42px">56 <span style="font-size:15px;font-weight:600">beats a minute</span></span></div>
     <div class="chart"><div class="between"><span class="sect">This week</span><span class="pill">55 to 58</span></div><svg viewBox="0 0 320 130" width="100%" role="img" aria-label="Resting heart rate, Monday to Friday"><path d="M${pts.map(p => p.join(' ')).join('L')}" fill="none" stroke="var(--heart)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>${pts.map((p, i) => `<circle data-act="hr:${i}" cx="${p[0]}" cy="${p[1]}" r="9" style="fill:#fff;stroke:var(--heart);stroke-width:4;cursor:pointer"/><text x="${p[0]}" y="126" text-anchor="middle" style="font:600 11px Figtree,sans-serif;fill:#6B6690">${DAYS[i]}</text>`).join('')}</svg><p class="barcap" id="hrCap">Tap a point to see that day.</p></div>
     <div class="box" style="flex-direction:row;align-items:center"><span style="color:var(--sleep)">${ic('info',26)}</span><span class="small muted">Data Deck shows what your watch measured. It doesn't diagnose or give health advice.</span></div>` + srcRow(), anim); }
-function notifsView(anim){ S.notifs.forEach(n => n._was = n.un);
+function notifsView(anim){ S.notifs.forEach(n => n._was = n.un); if (S.notifs.some(n => n.un)) me('readAll').catch(() => {});
   setScr(head() + `<h2 class="d2">Notifications</h2>` + (S.notifs.length ? S.notifs.map((n, i) => `<button class="notif${n.un ? ' un' : ''}" type="button" data-act="notif:${i}"><span class="badge" style="background:${n.bg}${n.bg === 'var(--gold)' ? ';color:var(--night)' : ''}">${ic(n.icon,22)}</span><span><span class="b">${n.t}</span><br><span class="small muted">${n.s}</span></span></button>`).join('') : `<div class="empty"><span class="b">Nothing new</span><span class="muted small">Packs, payouts and quest rewards show up here.</span></div>`)
     + `<button class="link" type="button" data-act="go:you:notifset" style="align-self:flex-start">Choose what you're told about</button>`, anim);
   S.notifs.forEach(n => n.un = false); }
@@ -951,7 +978,7 @@ function stopSharing(){ if (S.stopped) return; S.stopped = true; clearInterval(t
   addLog('Trinity Sleep Lab asked for day ' + (S.day + 1) + ' after you stopped. The server answered: ' + (r.body.error || 'Access denied') + '.', 'refused'); notify('lock', 'var(--danger)', 'Request refused', 'Trinity Sleep Lab asked for another batch and got nothing', 'go:wallet:loan'); if ($('logBox')) $('logBox').innerHTML = logHtml(S.view === 'loan' ? 50 : 6); }); }, 2200); }
 
 /* ---------- you ---------- */
-const BADGES = [['cards','var(--sleep)','First pack','Open your first weekly pack.',() => S.opened],['flame','#F0633E','5-day streak','Finish at least one quest on 5 days in a row.',() => true],['moon','var(--sleep-d)','8 h sleeper','Sleep 8 hours or more in one night.',() => true],['steps','var(--steps)','10k day','Walk 10,000 steps in one day.',() => true],['star','var(--gold)','Legendary','Find a Legendary card.',() => S.opened],['shield','var(--sky)','Read a full notice','Open a researcher\'s full notice before deciding.',() => S.readNotice],['route','var(--steps-d)','100k week','Walk 100,000 steps in one week.',() => S.opened],['trophy','var(--heart)','Level 5','Reach level 5, Legend.',() => S.level >= 5]];
+const BADGES = [['cards','var(--sleep)','First pack','Open your first weekly pack.',() => S.opened],['flame','#F0633E','5-day streak','Finish at least one quest on 5 days in a row.',() => S.streak >= 5],['moon','var(--sleep-d)','8 h sleeper','Sleep 8 hours or more in one night.',() => true],['steps','var(--steps)','10k day','Walk 10,000 steps in one day.',() => true],['star','var(--gold)','Legendary','Find a Legendary card.',() => S.opened],['shield','var(--sky)','Read a full notice','Open a researcher\'s full notice before deciding.',() => S.readNotice],['route','var(--steps-d)','100k week','Walk 100,000 steps in one week.',() => S.opened],['trophy','var(--heart)','Level 5','Reach level 5, Legend.',() => S.level >= 5]];
 const menuRow = (act, icon, bg, t, s) => `<button class="row" type="button" data-act="${act}"><span class="badge" style="background:${bg}${bg === 'var(--gold)' ? ';color:var(--night)' : ''}">${ic(icon,24)}</span><span><span class="b">${t}</span><br><span class="small muted">${s}</span></span><span class="muted">${ic('chev',20)}</span></button>`;
 function you(anim){ const n = ['health','phone','strava','sample'].filter(k => S.src[k]).length, got = BADGES.filter(b => b[4]()).length, found = S.opened ? 4 : 2;
   setScr(`<h2 class="d2">You</h2><div class="hero"><div class="stars"></div><div class="between"><div style="display:flex;gap:12px;align-items:center"><span class="avatar big" style="background:${S.color};cursor:default">${S.name[0].toUpperCase()}</span><div><div class="d3">${S.name}</div><div class="small" style="opacity:.8">Signed in with ${S.provider || 'Apple'}</div></div></div><button class="iconbtn" type="button" data-act="sheet:profile" aria-label="Edit profile">${ic('edit',20)}</button></div><button class="tapzone" type="button" data-act="sheet:levels" style="display:flex;flex-direction:column;gap:8px"><div class="between"><span class="b">Level ${S.level} · ${lvlName(S.level)}</span><span class="small" style="opacity:.8">${S.xp} / 400 XP</span></div><div class="xp"><i style="width:${S.xp / 4}%"></i></div></button></div>
@@ -1039,20 +1066,20 @@ const ACT = {
   sheet(name, a){ SH[name](a); },
   introNext(){ if (S.intro < 2){ S.intro++; onboarding('push'); } else ACT.introSkip(); },
   introSkip(){ if (S.replay){ S.replay = false; S.onb = true; tabs(); render('fade'); } else { S.ob = 2; onboarding('push'); } },
-  auth(p){ const el = actEl; S.provider = p; el.innerHTML = '<span class="spin" aria-hidden="true"></span>Signing in…'; buzz(8); setTimeout(signedIn, 800); },
+  auth(p){ const el = actEl; S.provider = p; el.innerHTML = '<span class="spin" aria-hidden="true"></span>Signing in…'; buzz(8); signInAs(p); },
   emailCode(){ S.provider = 'email'; $('sheet').innerHTML = `<h2 class="d2">Check your email</h2><p class="muted">Enter the 6-digit code we sent.</p><div class="code" id="code">${'<i></i>'.repeat(6)}</div><p class="small muted">Prototype: the code fills in by itself.</p>`;
-    '418205'.split('').forEach((d, i) => setTimeout(() => { const c = $('code'); if (c) c.children[i].textContent = d; if (i === 5) setTimeout(() => { closeSheet(); signedIn(); }, 350); }, 180 * (i + 1))); },
+    '418205'.split('').forEach((d, i) => setTimeout(() => { const c = $('code'); if (c) c.children[i].textContent = d; if (i === 5) setTimeout(() => { closeSheet(); signInAs('email'); }, 350); }, 180 * (i + 1))); },
   year(d){ S.year = Math.max(1930, Math.min(2026, S.year + +d)); buzz(5); updYear(); },
-  yearGo(){ stage('signed'); S.ob = 4; onboarding('push'); },
+  yearGo(){ me('age', {birthYear:S.year}).then(r => { if (r.status !== 200){ $('yMsg').textContent = r.body.error || 'Could not check your age.'; return; } stage('signed'); S.ob = 4; onboarding('push'); }, () => failToast('The server did not answer.')); },
   obNext(n){ S.ob = +n; if (S.ob === 6) stage('connected'); onboarding('push'); },
   start(){ S.onb = true; notify('flame', '#F0633E', '5 day streak', 'One quest a day keeps it going', 'sheet:streak'); notify('cards', 'var(--sleep)', 'Your week 41 pack is ready', '4 cards inside', 'tab:deck'); go('today'); },
-  src(k){ if (k === 'health' || k === 'phone') return SH.perm(k); S.src[k] = true; buzz([10,40,10]); if (k === 'strava') toast(`${ic('run',20)}<span>Strava connected. Its data makes cards for you only.</span>`, 2800); if (S.onb) rerender(); else onboarding(); },
-  srcOff(k){ S.src[k] = false; toast('<span>Turned off. Reading has stopped.</span>', 2400); rerender(); },
-  permAllow(){ S.src[S.permKind] = true; closeSheet(); buzz([10,40,10]); if (S.onb) rerender(); else onboarding(); },
+  src(k){ if (k === 'health' || k === 'phone') return SH.perm(k); S.src[k] = true; me('sources', {sources:{[k]:true}}).then(saved); buzz([10,40,10]); if (k === 'strava') toast(`${ic('run',20)}<span>Strava connected. Its data makes cards for you only.</span>`, 2800); if (S.onb) rerender(); else onboarding(); },
+  srcOff(k){ S.src[k] = false; me('sources', {sources:{[k]:false}}).then(saved); toast('<span>Turned off. Reading has stopped.</span>', 2400); rerender(); },
+  permAllow(){ S.src[S.permKind] = true; me('sources', {sources:{[S.permKind]:true}}).then(saved); closeSheet(); buzz([10,40,10]); if (S.onb) rerender(); else onboarding(); },
   permDeny(){ closeSheet(); toast('<span>No problem. Try "This phone" or the sample data instead.</span>', 3200); },
   type(k){ const el = actEl; S.types[k] = !S.types[k]; el.setAttribute('aria-checked', S.types[k]); buzz(5); },
-  tog(k){ const el = actEl; S.set[k] = !S.set[k]; el.setAttribute('aria-checked', S.set[k]); if (k === 'reduce') phone.classList.toggle('rm', S.set.reduce); buzz(6); },
-  goal(k, d){ if (k === 'steps'){ S.goals.steps = Math.max(3000, Math.min(15000, S.goals.steps + d * 500)); } else S.goals.sleep = Math.max(6, Math.min(10, S.goals.sleep + d * .5)); buzz(5);
+  tog(k){ const el = actEl; S.set[k] = !S.set[k]; el.setAttribute('aria-checked', S.set[k]); me('settings', {settings:{[k]:S.set[k]}}).then(saved); if (k === 'reduce') phone.classList.toggle('rm', S.set.reduce); buzz(6); },
+  goal(k, d){ if (k === 'steps'){ S.goals.steps = Math.max(3000, Math.min(15000, S.goals.steps + d * 500)); } else S.goals.sleep = Math.max(6, Math.min(10, S.goals.sleep + d * .5)); buzz(5); me('goals', {goals:S.goals}).then(saved);
     if (S.onb && (S.view === 'steps' || S.view === 'sleep')){ rerender(); checkQuests(); return; }
     const a = $('gSteps'), b = $('gSleep'); if (a) a.textContent = num(S.goals.steps); if (b) b.textContent = S.goals.sleep + ' h';
     if ($('gStepsT')) $('gStepsT').textContent = 'About ' + Math.round(S.goals.steps / 110) + ' minutes of walking'; if ($('gSleepT')) $('gSleepT').textContent = 'In bed by ' + bedFor(S.goals.sleep) + ' for a 7:00 am start'; checkQuests(); },
@@ -1064,41 +1091,52 @@ const ACT = {
   deckTab(t){ closeSheet(); S.deckTab = t; if (S.tab === 'deck' && !S.view) rerender(); else go('deck'); },
   collection(){ S.deckTab = 'coll'; go('deck'); },
   openPack(){ const el = actEl; if (S.opened) return; el.classList.add('tearing'); buzz(15);
-    setTimeout(() => { S.opened = true; S.deal = true; stage('opened'); tabs(); deck(); confetti(); addXp(40); toast(`${ic('bolt',20)}<span>Pack opened. <b>+40 XP</b></span>`, 2400);
+    setTimeout(() => { S.opened = true; S.deal = true; stage('opened'); tabs(); deck(); confetti(); earn('pack', {week:WEEK}); toast(`${ic('bolt',20)}<span>Pack opened. <b>+40 XP</b></span>`, 2400);
       CARDS.forEach((c, i) => setTimeout(() => buzz(c.g === 4 ? 30 : 10), i * 90 + 320)); }, reduce() ? 60 : 460); },
   flip(){ $('flipIn').classList.toggle('flipped'); buzz(8); },
   bf(f){ S.bf = f; rerender(); },
   bounty: openBounty,
   confirm: confirmBounty,
   stoppedDone(){ closeSheet(); if (S.tab === 'wallet' && S.view === 'loan') render('fade'); else go('wallet', 'loan'); },
-  wake(){ const m = S.zMin || 0, t = Math.floor(m / 60) + ' h ' + (m % 60 < 10 ? '0' : '') + (m % 60) + ' m'; S.slept = t; closeSheet(); const first = !S.q.sleep && m / 60 >= S.goals.sleep; if (first){ S.q.sleep = true; addXp(30); }
-    toast(`${ic('moon',20)}<span>Logged ${t} of sleep.${first ? ' <b>+30 XP</b>' : ''}</span>`, 2800); rerender(); },
+  wake(){ const m = S.zMin || 0, t = Math.floor(m / 60) + ' h ' + (m % 60 < 10 ? '0' : '') + (m % 60) + ' m'; S.slept = t; closeSheet(); const end = Math.floor(Date.now() / 1000);
+    earn('sleep', {start:end - Math.max(1, m) * 60, end}).then(b => { const first = b.xp > 0; if (first) S.q.sleep = true;
+      toast(`${ic('moon',20)}<span>Logged ${t} of sleep.${first ? ' <b>+30 XP</b>' : ''}</span>`, 2800); rerender(); }, () => failToast('Sleep was not saved.')); },
   dest(d){ S.dest = d; SH.cashout(); },
-  cashGo(){ const av = S.earned - S.cashed; faceId(() => { S.cashed += av; stage('cashed'); addLog('Cashed out to ' + (S.dest === 'bank' ? 'your bank account' : 'your own wallet') + '.', 'cash', av); notify('bank', 'var(--steps)', 'Cash out started', money(av) + ' USDC is on its way', 'tab:wallet');
-      sheet(`<div style="display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;padding-top:10px">${coin3(true)}<h2 class="d2">${money(av)} USDC is on its way</h2><p class="muted">${S.dest === 'bank' ? 'It reaches your bank in 1 to 2 working days, in euro.' : 'It reaches your wallet in a few seconds.'}</p></div><button class="btn primary wide" type="button" data-act="close">Done</button>`); if (S.tab === 'wallet') rerender(); }); },
+  cashGo(){ const av = Math.round((S.earned - S.cashed) * 1e6) / 1e6; faceId(() => me('cashOut', {amountUsdc:av, destination:S.dest === 'bank' ? 'bank' : 'wallet'}).then(r => {
+      if (r.status !== 200){ closeSheet(); return toast(`${ic('x',20)}<span>Cash out refused: ${esc(r.body.error || r.status)}</span>`, 4200); }
+      S.cashed = r.body.profile.cashedOutUsdc; stage('cashed'); addLog('Cashed out to ' + (S.dest === 'bank' ? 'your bank account' : 'your own wallet') + '.', 'cash', av, r.body.cashOut.signature); notify('bank', 'var(--steps)', 'Cash out started', money(av) + ' USDC is on its way', 'tab:wallet');
+      sheet(`<div style="display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;padding-top:10px">${coin3(true)}<h2 class="d2">${money(av)} USDC is on its way</h2><p class="muted">${S.dest === 'bank' ? 'It reaches your bank in 1 to 2 working days, in euro.' : 'It reaches your wallet in a few seconds.'}</p></div><button class="btn primary wide" type="button" data-act="close">Done</button>`); if (S.tab === 'wallet') rerender(); }, () => failToast('The server did not answer.'))); },
   copy(){ toast(`${ic('copy',18)}<span>Reference copied</span>`, 1800); },
   saveCopy(){ toast(`${ic('doc',18)}<span>Saved to your files as a PDF</span>`, 2200); },
   eraseAns(){ const el = actEl; if (S.eraseAns) return; S.eraseAns = true; el.textContent = 'Erasure request sent'; addLog('You asked Active Ireland to erase your answer.'); toast('<span>Request sent. They must answer within one month.</span>', 2600); },
   dpo(){ toast(`${ic('mail',18)}<span>Opens your mail app with the address filled in</span>`, 2600); },
   swatch(c){ S.color = c; Array.prototype.forEach.call($('sw').children, b => b.setAttribute('aria-pressed', b.dataset.act === 'swatch:' + c)); },
-  saveProfile(){ const v = $('pfName').value.trim(); if (v) S.name = v; closeSheet(); rerender(); toast(`${ic('check',18)}<span>Profile saved</span>`, 1800); },
+  saveProfile(){ const v = $('pfName').value.trim(); if (v) S.name = v; me('details', {name:S.name, color:S.color}).then(r => { if (saved(r).status !== 200) return; closeSheet(); rerender(); toast(`${ic('check',18)}<span>Profile saved</span>`, 1800); }, () => failToast('Profile was not saved.')); },
   sendMsg(){ closeSheet(); toast(`${ic('mail',18)}<span>Message sent. We'll reply by email.</span>`, 2600); },
-  export(){ toast('<span>Export is being prepared. In the real app it arrives by email.</span>', 2800); },
-  delete(){ const el = actEl; if (el.dataset.armed) return reset(); el.dataset.armed = '1'; el.textContent = 'Tap again to delete'; buzz(30); },
+  export(){ fetch('/api/me/export?player=' + encodeURIComponent(PLAYER)).then(r => { if (!r.ok) throw r; return r.blob(); }).then(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'data-deck-export.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    toast(`${ic('doc',18)}<span>Export saved: your account, loans and consent records as JSON</span>`, 2800); }, () => failToast('The export could not be made.')); },
+  delete(){ const el = actEl; if (el.dataset.armed) return fetch('/api/me?player=' + encodeURIComponent(PLAYER), {method:'DELETE'}).then(() => { reset(true); toast('<span>Account removed. Every loan was stopped first and each study was asked to erase its batches.</span>', 4200); }, () => failToast('The account was not removed.')); el.dataset.armed = '1'; el.textContent = 'Tap again to delete'; buzz(30); },
   replayIntro(){ S.replay = true; S.onb = false; S.ob = 1; S.intro = 0; tabs(); onboarding('fade'); },
-  logout(){ closeSheet(); S.onb = false; S.out = true; S.ob = 2; S.stack = []; S.view = null; tabs(); onboarding('fade'); toast(`${ic('logout',18)}<span>Logged out. Your account is safe.</span>`, 2400); }
+  logout(){ me('signOut').catch(() => {}); closeSheet(); S.onb = false; S.out = true; S.ob = 2; S.stack = []; S.view = null; tabs(); onboarding('fade'); toast(`${ic('logout',18)}<span>Logged out. Your account is safe.</span>`, 2400); }
 };
+function signInAs(p){ me('signIn', S.out ? {provider:p} : {provider:p, name:S.name}).then(r => { if (r.status !== 200) return failToast('Sign-in failed.');
+  if (S.out) fromProfile(r.body.profile); signedIn(); }, () => failToast('The server did not answer.')); }
 function signedIn(){ if (S.out){ S.out = false; S.onb = true; stage('loggedout'); go('today'); toast(`${ic('check',18)}<span>Welcome back, ${S.name}</span>`, 2200); } else { S.ob = 3; onboarding('push'); } }
 phone.addEventListener('click', e => { const el = e.target.closest('[data-act]'); if (!el || el.disabled) return; const p = el.getAttribute('data-act').split(':'); const fn = ACT[p[0]]; actEl = el; if (fn) fn.apply(null, p.slice(1)); });
 $('scrim').addEventListener('click', () => { if (!sheetLock) closeSheet(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !sheetLock) closeSheet(); });
 
-function reset(){ api('/api/demo/reset', {}).catch(() => {}); clearInterval(timer); clearInterval(stepT); clearTimeout(splashT); closeSheet(); $('toasts').innerHTML = ''; ['.faceid','.lvlup','.confetti'].forEach(q => { const f = document.querySelector(q); if (f) f.remove(); });
+// Restart wipes the server (keepServer=false); a page load keeps it and picks the account back up (boot).
+function reset(keepServer){ if (!keepServer) api('/api/demo/reset', {}).catch(() => {}); clearInterval(timer); clearInterval(stepT); clearTimeout(splashT); closeSheet(); $('toasts').innerHTML = ''; ['.faceid','.lvlup','.confetti'].forEach(q => { const f = document.querySelector(q); if (f) f.remove(); });
   S = {onb:false, ob:0, intro:0, year:2002, name:'Aoife', color:COLORS[0], tab:'today', view:null, param:null, stack:[], deckTab:'week', bf:'all', dest:'bank', opened:false, granted:false, stopped:false, answered:false, grantId:null, answerGrant:null, keys:{}, day:0, earned:0, cashed:0, log:[], notifs:[], level:3, xp:330, streak:5, steps:4812, goals:{steps:6000, sleep:8}, q:{steps:false, sleep:false}, src:{health:false, phone:false, strava:false, sample:false}, types:{sleep:true, steps:true, heart:true}, set:{haptics:true, reduce:false, payout:true, pack:true, bedtime:true, quests:true, studies:false}};
   phone.classList.remove('rm');
   Array.prototype.forEach.call(document.querySelectorAll('#stages li'), li => { li.classList.remove('on'); li.firstChild.innerHTML = ''; }); tabs(); render(); }
 $('brandIc').innerHTML = ic('cards', 20);
-$('restart').addEventListener('click', reset);
-reset();
+$('restart').addEventListener('click', () => reset());
+function boot(){ reset(true); const m = api('/api/me?player=' + encodeURIComponent(PLAYER)), rec = records();
+  Promise.all([m, rec, loadStats()]).then(([m, rec]) => { const p = m.body && m.body.profile; if (!p || !p.ageVerified) return;
+    fromProfile(p); if (rec) resumeLoans(rec);
+    if (p.signedIn){ S.onb = true; go('today'); } else { S.out = true; S.ob = 2; tabs(); render(); } }).catch(() => {}); }
+boot();
 })();
 </script>

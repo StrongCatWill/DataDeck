@@ -73,6 +73,16 @@ describe("game rules on the server", () => {
     expect(getProfile("p-pack")).toMatchObject({ level: 2, xp: 0 }); // 10 x 40 = 400
   });
 
+  it("starts the demo player mid-game so the pack and one quest reach level 4", () => {
+    signIn("demo-player", "apple");
+    verifyAge("demo-player", 1999);
+    expect(getProfile("demo-player")).toMatchObject({ level: 3, xp: 330, streak: 5 });
+    openPack("demo-player", 41);
+    const { levelsGained, profile } = completeQuest("demo-player", "steps");
+    expect(levelsGained).toBe(1);
+    expect(profile).toMatchObject({ level: 4, xp: 0, streak: 6 });
+  });
+
   it("logs a Sleep mode night and finishes the sleep quest when the goal is met", async () => {
     await adult("p-night");
     const end = Math.floor(Date.now() / 1000), start = end - 8.5 * 3600;
