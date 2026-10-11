@@ -695,6 +695,10 @@ function earn(action, extra){ return me(action, extra).then(r => { const p = r.b
   if (up) setTimeout(levelUp, 900); return r.body; }); }
 const saved = r => { if (r.status !== 200) toast(`${ic('x',20)}<span>${esc(r.body.error || 'Not saved')}</span>`, 3200); return r; };
 // Loans already running on the server come back after a reload, with their payouts in the activity log.
+// After a reload the left-panel checklist is rebuilt from what the server already holds.
+function restoreStages(p){ const any = o => Object.keys(o || {}).some(k => o[k]);
+  [['signed', p.ageVerified], ['connected', any(p.sources)], ['opened', S.opened], ['level', p.level > (p.startLevel || 1)], ['granted', S.granted], ['paid', S.day > 0],
+   ['answered', S.answered], ['stopped', S.stopped], ['cashed', p.cashOuts && p.cashOuts.length > 0], ['loggedout', p.signOuts > 0]].forEach(x => { if (x[1]) stage(x[0]); }); }
 function resumeLoans(rec){ S.earned = rec.totalPaidUsdc;
   rec.grants.forEach(g => { if (g.bountyId === SERVER_ID.tcd){ S.granted = true; S.grantId = g.grantId; S.day = g.batchesOpened; S.stopped = g.status !== 'Active'; }
     else if (g.bountyId === SERVER_ID.ai){ S.answered = true; S.answerGrant = g.grantId; }
@@ -1235,7 +1239,7 @@ $('restart').addEventListener('click', () => reset());
 function boot(){ reset(true); api('/api/chain').then(r => { if (r.status === 200) CHAIN = r.body; if (onChain()) return connectWallet(true).catch(() => {}); })
   .then(() => onChain() && PLAYER === 'demo-player' ? Promise.all([{body:{}}, null, loadStats()]) : Promise.all([api('/api/me?player=' + encodeURIComponent(PLAYER)), records(), loadStats()]))
   .then(([m, rec]) => { const p = m.body && m.body.profile; if (!p || !p.ageVerified) return;
-    fromProfile(p); if (rec) resumeLoans(rec); loadRules();
+    fromProfile(p); if (rec) resumeLoans(rec); loadRules(); restoreStages(p);
     if (p.signedIn){ S.onb = true; go('today'); } else { S.out = true; S.ob = 2; tabs(); render(); } }).catch(() => {}); }
 boot();
 })();
