@@ -9,6 +9,7 @@ import {
   associatedTokenAddress,
   listPayouts,
   payoutBatch,
+  platformFee,
   usdcTransferIxs,
 } from "../solana/payout";
 
@@ -50,6 +51,16 @@ describe("payoutBatch (PAYOUT_MODE unset = simulate)", () => {
     const paid = await listPayouts({ grantId: g.grantId });
     expect(paid).toHaveLength(1);
     expect(paid[0].batch).toBeNull();
+  });
+});
+
+describe("platform fee (pitch slide 11)", () => {
+  it("is 15% of what the researcher pays, on top of the player's amount", async () => {
+    const fee = platformFee(600_000);
+    expect(fee).toBe(105_882); // researcher pays 0.705882, player gets 0.60
+    expect(fee / (600_000 + fee)).toBeCloseTo(0.15, 4);
+    const paid = await payoutBatch(grant("stream_30d"), 0);
+    expect(paid).toMatchObject({ amount: 600_000, fee: 105_882 });
   });
 });
 

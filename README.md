@@ -119,6 +119,10 @@ faucet.circle.com), and set in `.env.local`:
 | `PAYOUT_MODE` | `simulate` · `devnet` (real devnet USDC from the researcher wallet) |
 | `ANTHROPIC_API_KEY` | Enables live Claude summaries on the consent sheet |
 
+In `memo` or `anchor` mode the phone app at `/` signs in with Phantom (set Phantom to devnet and give it a little SOL):
+the server builds each grant and kill-switch transaction (`/api/chain`), Phantom signs and sends it, and every payout
+and grant line in the app links to Solana Explorer. Run `npm run dev` (not `npm start`) so `/api/demo/reset` stays on.
+
 ## API
 
 | Route | Does |
@@ -132,6 +136,12 @@ faucet.circle.com), and set in `.env.local`:
 | `GET/POST/DELETE /api/rules` | A player's auto-accept ruleset (guardrails enforced) |
 | `POST /api/auto-accept` | A new bounty: open delegate-signed grants for every matching player |
 | `GET /api/payouts` | USDC paid so far, per player or grant |
+| `POST /api/trace` | Finds which of the player's grants a leaked copy came from, by its trace IDs |
+| `GET /api/records` | A player's loans, consent notices, erasure requests and payouts, for the app |
+| `GET/POST/DELETE /api/me` | The app account: sign-in, 18+, sources, goals, XP and quests, notifications, cash-out, delete |
+| `GET /api/me/export` | The account and its records as a JSON file |
+| `GET /api/stats` | Daily sample rows by week, for the app's charts |
+| `GET/POST /api/chain` | Server mode; unsigned grant or kill-switch tx for the player's wallet to sign (memo/anchor) |
 
 ## Code map
 

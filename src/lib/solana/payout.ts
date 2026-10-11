@@ -16,6 +16,9 @@ import { connection, keypairFromEnv } from "./anchorGrants";
 //   simulate - records the payout with a "sim-" signature, no chain call (default; works with no funded wallet)
 //   devnet   - sends a real devnet USDC TransferChecked signed by RESEARCHER_SECRET_KEY
 // The transfer carries only wallets and an amount: no memo, no grant or health terms on-chain (NFR-1).
+// Platform fee (pitch slide 11): the researcher pays the player's price plus a fee that is 15% of what they pay,
+// so the player still gets the price shown on the consent sheet. In devnet mode the fee goes to
+// PLATFORM_FEE_WALLET in the same transaction; without that wallet it is recorded but not sent.
 
 export const TOKEN_PROGRAM_ID = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 export const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
@@ -24,13 +27,19 @@ export const USDC_DECIMALS = 6;
 
 export type PayoutMode = "simulate" | "devnet";
 
+export const PLATFORM_FEE_BPS = 1500; // 15% of what the researcher pays
+
+/** Fee in USDC base units on top of the player's amount: fee / (amount + fee) = 15%. */
+export const platformFee = (amount: number) => Math.round((amount * PLATFORM_FEE_BPS) / (10_000 - PLATFORM_FEE_BPS));
+
 export interface PayoutRecord {
   grantId: string;
   /** Batch number for streams; null for one-off payments. */
   batch: number | null;
   player: string;
   researcher: string;
-  amount: number; // USDC base units (6 decimals)
+  amount: number; // USDC base units (6 decimals), what the player receives
+  fee: number; // platform fee in base units, paid by the researcher on top of amount
   signature: string; // devnet tx signature, or "sim-..." when simulated
   mode: PayoutMode;
   paidAt: number; // unix seconds
@@ -71,7 +80,7 @@ export async function listPayouts(filter: { grantId?: string; player?: string } 
 }
 
 async function pay(grant: OnChainGrant, batch: number | null): Promise<PayoutRecord> {
-  const base = { grantId: grant.grantId, batch, player: grant.player, amount: grant.pricePerDay };
+  const base = { grantId: grant.grantId, batch, player: grant.player, amount: grant.pricePerDay, fee: platformFee(grant.pricePerDay) };
   const paidAt = Math.floor(Date.now() / 1000);
   if (payoutMode() === "simulate") {
     const signature = `sim-${grant.grantId.slice(0, 8)}-${batch ?? "once"}-${paidAt}`;
@@ -83,6 +92,8 @@ async function pay(grant: OnChainGrant, batch: number | null): Promise<PayoutRec
   const tx = new Transaction().add(
     ...usdcTransferIxs(researcher.publicKey, new PublicKey(grant.player), mint, BigInt(grant.pricePerDay)),
   );
+  const feeWallet = process.env.PLATFORM_FEE_WALLET;
+  if (feeWallet && base.fee > 0) tx.add(...usdcTransferIxs(researcher.publicKey, new PublicKey(feeWallet), mint, BigInt(base.fee)));
   const signature = await sendAndConfirmTransaction(connection(), tx, [researcher]);
   return { ...base, researcher: researcher.publicKey.toBase58(), signature, mode: "devnet", paidAt };
 }

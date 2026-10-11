@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { resetDemoState } from "@/lib/demoReset";
 
-// POST /api/demo/reset -> clears grants, batch keys, rules, erasure log, access log, trace IDs and payouts held in server memory.
+// POST /api/demo/reset -> clears grants, batch keys, rules, erasure log, access log, trace IDs, app accounts and payouts held in server memory.
 // Demo-only: refused on a production build unless ALLOW_DEMO_RESET=1.
 export async function POST() {
   if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEMO_RESET !== "1") {

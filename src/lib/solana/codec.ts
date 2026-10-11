@@ -40,6 +40,23 @@ export function hexToBytes(hex: string, length: number): Uint8Array {
   return Uint8Array.from(hex.match(/../g)!, (b) => parseInt(b, 16));
 }
 
+const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+/** Base58 (Bitcoin alphabet), as wallets expect a serialized transaction message. */
+export function bytesToBase58(b: Uint8Array): string {
+  let n = 0n;
+  for (const x of b) n = n * 256n + BigInt(x);
+  let out = "";
+  while (n > 0n) {
+    out = B58[Number(n % 58n)] + out;
+    n /= 58n;
+  }
+  for (const x of b) {
+    if (x !== 0) break;
+    out = "1" + out;
+  }
+  return out;
+}
+
 export const bytesToHex = (b: Uint8Array) => Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
 
 /**
