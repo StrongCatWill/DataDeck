@@ -51,6 +51,13 @@ describe("/api/me account", () => {
     expect((await me({ player: "p-tol", action: "tolerance", level: "Extreme" })).status).toBe(400);
   });
 
+  it("remembers a sign-out so the app can restore its checklist", async () => {
+    await adult("p-out");
+    await me({ player: "p-out", action: "signOut" });
+    const back = await json(await me({ player: "p-out", action: "signIn", provider: "apple" }));
+    expect(back.body.profile).toMatchObject({ signedIn: true, signOuts: 1, startLevel: 1 });
+  });
+
   it("rejects an unknown action", async () => {
     await adult("p-act");
     expect((await me({ player: "p-act", action: "hack" })).status).toBe(400);
@@ -82,7 +89,7 @@ describe("game rules on the server", () => {
   it("starts the demo player mid-game so the pack and one quest reach level 4", () => {
     signIn("demo-player", "apple");
     verifyAge("demo-player", 1999);
-    expect(getProfile("demo-player")).toMatchObject({ level: 3, xp: 330, streak: 5 });
+    expect(getProfile("demo-player")).toMatchObject({ level: 3, startLevel: 3, xp: 330, streak: 5 });
     openPack("demo-player", 41);
     const { levelsGained, profile } = completeQuest("demo-player", "steps");
     expect(levelsGained).toBe(1);

@@ -54,6 +54,8 @@ export interface Profile {
   /** Bounty feed filter (pitch slide 8): requests labelled above this are hidden. */
   riskTolerance: RiskLevel;
   level: number;
+  /** Level the player started at, so the app can tell whether they have levelled up since. */
+  startLevel: number;
   xp: number;
   streak: number;
   lastQuestDay: string | null; // YYYY-MM-DD of the last day a quest was finished
@@ -62,6 +64,7 @@ export interface Profile {
   nights: SleepNight[];
   notifications: Notification[];
   cashOuts: CashOut[];
+  signOuts: number;
   createdAt: number;
 }
 
@@ -93,6 +96,7 @@ function fresh(player: string): Profile {
     settings: { haptics: true, reduce: false, payout: true, pack: true, bedtime: true, quests: true, studies: false },
     riskTolerance: "High",
     level: 1,
+    startLevel: 1,
     xp: 0,
     streak: 0,
     lastQuestDay: null,
@@ -101,6 +105,7 @@ function fresh(player: string): Profile {
     nights: [],
     notifications: [],
     cashOuts: [],
+    signOuts: 0,
     createdAt: now(),
   };
 }
@@ -110,6 +115,7 @@ function fresh(player: string): Profile {
 export const DEMO_PLAYER = "demo-player";
 function demoStart(p: Profile): Profile {
   p.level = 3;
+  p.startLevel = 3;
   p.xp = 330;
   p.streak = 5;
   p.lastQuestDay = today(Date.now() - 86_400_000);
@@ -138,6 +144,7 @@ export function signIn(player: string, provider: string, name?: string): Profile
 export function signOut(player: string): Profile {
   const p = need(player);
   p.signedIn = false;
+  p.signOuts++;
   return p;
 }
 
