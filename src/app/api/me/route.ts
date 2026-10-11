@@ -14,6 +14,7 @@ import {
   setGoals,
   setSettings,
   setSources,
+  setTolerance,
   signIn,
   signOut,
   verifyAge,
@@ -67,6 +68,9 @@ async function run(player: string, action: string, b: Record<string, any>): Prom
       return {};
     case "settings":
       setSettings(player, b.settings ?? {});
+      return {};
+    case "tolerance":
+      setTolerance(player, b.level);
       return {};
     case "details":
       setDetails(player, b);
