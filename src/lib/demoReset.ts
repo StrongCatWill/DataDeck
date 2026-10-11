@@ -11,6 +11,7 @@ interface Stores {
   __dataDeckExplain?: Map<unknown, unknown>;
   __dataDeckAccessLog?: unknown[];
   __dataDeckFingerprints?: Map<unknown, unknown>;
+  __dataDeckProfiles?: Map<unknown, unknown>;
 }
 
 export function resetDemoState(): { grants: number; keysDestroyed: number } {
@@ -41,6 +42,7 @@ export function resetDemoState(): { grants: number; keysDestroyed: number } {
   g.__dataDeckExplain?.clear();
   if (g.__dataDeckAccessLog) g.__dataDeckAccessLog.length = 0;
   g.__dataDeckFingerprints?.clear();
+  g.__dataDeckProfiles?.clear();
 
   return { grants, keysDestroyed };
 }
