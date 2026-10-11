@@ -70,6 +70,30 @@ async function sendAndConfirm(tx: Transaction, { wallet, connection }: Deps): Pr
   return sig;
 }
 
+/** The create_grant (or dd:grant memo) instruction the player signs. Also used by /api/chain for the static app. */
+export async function grantInstruction(bounty: Bounty, player: PublicKey, mode: "anchor" | "memo") {
+  const grantId = newGrantId();
+  const fields = {
+    grantId,
+    bountyHash: await saltedBountyHash(bounty.id),
+    accessType: bounty.accessType,
+    pricePerDay: Math.round(bounty.priceUsdc * 1_000_000),
+  };
+  const researcher = researcherFor(bounty);
+  const ix =
+    mode === "anchor"
+      ? createGrantIx({ player, researcher, ...fields })
+      : grantMemoIx(player, { ...fields, researcher: researcher.toBase58(), expiresAt: memoExpiresAt(bounty.accessType, Math.floor(Date.now() / 1000)) });
+  return { grantId, ix };
+}
+
+/** The kill switch tx the player signs. Also used by /api/chain for the static app. */
+export async function killSwitchTransaction(player: PublicKey, activeGrantIds: string[], mode: "anchor" | "memo", connection: Connection) {
+  if (mode === "memo") return memoKillSwitchTx(player, activeGrantIds);
+  const hasDelegate = (await connection.getAccountInfo(ruleDelegatePda(player))) !== null;
+  return killSwitchTx(player, activeGrantIds, hasDelegate);
+}
+
 export async function lendCard(bounty: Bounty, cardId: string, deps: Deps): Promise<{ grantId: string; tx?: string }> {
   const mode = deps.mode ?? clientGrantMode();
   const fetchFn = deps.fetchFn ?? fetch;
@@ -82,18 +106,7 @@ export async function lendCard(bounty: Bounty, cardId: string, deps: Deps): Prom
   }
 
   if (!publicKey) throw new Error("Connect a wallet first");
-  const grantId = newGrantId();
-  const fields = {
-    grantId,
-    bountyHash: await saltedBountyHash(bounty.id),
-    accessType: bounty.accessType,
-    pricePerDay: Math.round(bounty.priceUsdc * 1_000_000),
-  };
-  const researcher = researcherFor(bounty);
-  const ix =
-    mode === "anchor"
-      ? createGrantIx({ player: publicKey, researcher, ...fields })
-      : grantMemoIx(publicKey, { ...fields, researcher: researcher.toBase58(), expiresAt: memoExpiresAt(bounty.accessType, Math.floor(Date.now() / 1000)) });
+  const { grantId, ix } = await grantInstruction(bounty, publicKey, mode);
   const tx = await sendAndConfirm(new Transaction().add(ix), deps);
 
   // The RPC the server reads from can lag the one the wallet used, so 404 means "not yet".
@@ -121,13 +134,7 @@ export async function stopSharing(activeGrantIds: string[], deps: Deps): Promise
   }
 
   if (!publicKey) throw new Error("Connect a wallet first");
-  let tx: Transaction;
-  if (mode === "anchor") {
-    const hasDelegate = (await deps.connection.getAccountInfo(ruleDelegatePda(publicKey))) !== null;
-    tx = killSwitchTx(publicKey, activeGrantIds, hasDelegate);
-  } else {
-    tx = memoKillSwitchTx(publicKey, activeGrantIds);
-  }
+  const tx = await killSwitchTransaction(publicKey, activeGrantIds, mode, deps.connection);
   if (tx.instructions.length === 0) throw new Error("Nothing to stop");
   const sig = await sendAndConfirm(tx, deps);
 

@@ -644,7 +644,7 @@ const bounty = id => BOUNTIES.find(b => b.id === id);
 
 /* ---------- server (Next.js API in this repo) ---------- */
 // The phone is the player; the study's side (asking for each day's key) is simulated here on the demo clock.
-const PLAYER = 'demo-player', DAY_MS = 10000; // server demo clock: 1 day = 10 s
+let PLAYER = 'demo-player'; const DAY_MS = 10000; // server demo clock: 1 day = 10 s
 const SERVER_ID = {tcd:'b-trinity-sleep', ai:'b-active-ireland', hh:'b-heart-health-ai'};
 const api = (path, body) => fetch(path, body === undefined ? {} : {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(body)})
   .then(r => r.json().catch(() => ({})).then(j => ({status:r.status, body:j})));
@@ -652,6 +652,28 @@ const shortRef = x => x ? (x.length > 14 ? x.slice(0, 6) + '…' + x.slice(-4) :
 let SERVER_CARDS = [];
 function cardIdFor(name){ const c = SERVER_CARDS.find(x => x.name === name); return c ? c.id : null; }
 const records = () => api('/api/records?player=' + encodeURIComponent(PLAYER)).then(r => r.status === 200 ? r.body : null, () => null);
+// On-chain mode (GRANT_BACKEND=memo or anchor on the server): the player is their own Phantom wallet on devnet.
+// The server builds each transaction (/api/chain), the wallet signs and sends it, and the app reports the signature
+// to /api/grants or /api/revoke. The server never sees the player's key. In mock mode none of this runs.
+let CHAIN = {grantBackend:'mock', payoutMode:'simulate'};
+const onChain = () => CHAIN.grantBackend !== 'mock';
+const phantom = () => (window.phantom && window.phantom.solana) || (window.solana && window.solana.isPhantom ? window.solana : null);
+const pause = ms => new Promise(r => setTimeout(r, ms));
+const explorer = sig => sig && !/^sim-/.test(sig) && sig.length > 60 ? 'https://explorer.solana.com/tx/' + sig + '?cluster=devnet' : null;
+function connectWallet(trusted){ const w = phantom(); if (!w) return Promise.reject(new Error('Install Phantom and set it to devnet to use on-chain mode.'));
+  return w.connect(trusted ? {onlyIfTrusted:true} : undefined).then(r => { PLAYER = r.publicKey.toString(); return PLAYER; }); }
+async function signAndSend(build){ const r = await api('/api/chain', build); if (r.status !== 200) throw new Error(r.body.error || 'Could not build the transaction.');
+  const s = await phantom().request({method:'signAndSendTransaction', params:{message:r.body.message}}); return Object.assign({}, r.body, {tx:s.signature}); }
+// The server's RPC can lag the wallet's, so a grant or revoke it can't see yet is asked about again.
+async function chainGrant(bountyId, cardId){ const b = await signAndSend({action:'grant', player:PLAYER, bountyId});
+  for (let n = 0; ; n++){ const r = await api('/api/grants', {player:PLAYER, bountyId, cardId, grantId:b.grantId});
+    if (r.status === 201 || r.status === 409) return {status:201, body:{grantId:b.grantId, tx:b.tx}};
+    if (r.status !== 404 || n >= 10) return r; await pause(1500); } }
+async function chainRevoke(){ const b = await signAndSend({action:'revoke', player:PLAYER}); let pending = b.grantIds, destroyed = 0, status = 200;
+  for (let n = 0; pending.length && n < 10; n++){ const r = await api('/api/revoke', {player:PLAYER, tx:b.tx, grantIds:pending}); destroyed += r.body.keysDestroyed || 0; status = r.status;
+    pending = (r.body.rejected || []).filter(x => x.reason === 'Not revoked on-chain yet').map(x => x.grantId); if (pending.length) await pause(1500); }
+  return {status, body:{tx:b.tx, keysDestroyed:destroyed}}; }
+const walletToast = e => toast(`${ic('x',20)}<span>${esc(e && e.message || 'The wallet did not sign.')}</span>`, 4200);
 // The account lives on the server (/api/me): sign-in, 18+, sources, goals, settings, XP, quests, notifications, cash-outs.
 const WEEK = 41;
 const me = (action, extra) => api('/api/me', Object.assign({player:PLAYER, action}, extra || {}));
@@ -910,12 +932,12 @@ function openBounty(id){ const b = bounty(id);
     const words = ai.split(' '); let i = 0; (function tick(){ if (!p.isConnected) return; p.textContent = words.slice(0, ++i).join(' '); if (i < words.length) setTimeout(tick, 26); else if (c) c.disabled = false; })(); }), reduce() ? 100 : 700); }
 function confirmBounty(id){ faceId(() => {
   const name = id === 'tcd' ? 'Deep Sleeper' : 'Marathon Week', cardId = cardIdFor(name);
-  api('/api/grants', {player:PLAYER, bountyId:SERVER_ID[id], cardId}).then(r => {
+  (onChain() ? chainGrant(SERVER_ID[id], cardId) : api('/api/grants', {player:PLAYER, bountyId:SERVER_ID[id], cardId})).then(r => {
     if (r.status !== 201) return failToast('The loan could not start (' + (r.body.error || r.status) + ').');
-    closeSheet(); grantStarted(id, r.body.grantId);
-  }).catch(() => failToast('The server did not answer.')); }); }
-function grantStarted(id, grantId){
-  if (id === 'tcd'){ S.grantId = grantId; S.granted = true; stage('granted'); addLog('You lent Deep Sleeper to Trinity Sleep Lab for 30 days'); notify('school', 'var(--sky)', 'Loan started: Trinity Sleep Lab', 'Deep Sleeper, 30 days, 0.60 a day', 'go:wallet:loan'); go('wallet', 'loan'); toast(`${ic('check',20)}<span>Loan started. First payout is on its way.</span>`, 2400); startStream(); }
+    closeSheet(); grantStarted(id, r.body.grantId, r.body.tx);
+  }).catch(e => onChain() ? walletToast(e) : failToast('The server did not answer.')); }); }
+function grantStarted(id, grantId, tx){
+  if (id === 'tcd'){ S.grantId = grantId; S.granted = true; stage('granted'); addLog('You lent Deep Sleeper to Trinity Sleep Lab for 30 days', '', 0, tx); notify('school', 'var(--sky)', 'Loan started: Trinity Sleep Lab', 'Deep Sleeper, 30 days, 0.60 a day', 'go:wallet:loan'); go('wallet', 'loan'); toast(`${ic('check',20)}<span>Loan started. First payout is on its way.</span>`, 2400); startStream(); }
   else { S.answerGrant = grantId; S.answered = true; S.earned += 1;
     // The study asks for its one answer; the key API releases it once and the grant ends as Consumed.
     api('/api/keys/' + grantId + '/0').then(k => { if (k.body.payoutSig) S.log.forEach(l => { if (l.grant === grantId && !l.sig) l.sig = k.body.payoutSig; }); }); stage('answered'); addLog('One answer sent to Active Ireland.', '', 1); notify('run', 'var(--steps)', 'Answer sent to Active Ireland', '+1.00 USDC. Nothing continues after this.', 'sheet:answer'); go('wallet'); const t = toast(`<span style="color:#FFD46B">${ic('coin',24)}</span><span class="amt">+0.00</span><span>One answer, Active Ireland</span>`); countUp(t.querySelector('.amt'), 1); } }
@@ -968,14 +990,18 @@ function payout(sig){ S.day++; S.earned += .6; stage('paid'); addLog('Day ' + S.
   const t = toast(`<span style="color:#FFD46B">${ic('coin',24)}</span><span class="amt">+0.00</span><span>Day ${S.day} of 30, Trinity Sleep Lab</span>`); countUp(t.querySelector('.amt'), .6); buzz(8); }
 function startStream(){ clearInterval(timer); setTimeout(() => { if (S.granted && !S.stopped && S.day === 0) pullKey(); }, 1600); timer = setInterval(() => { if (S.stopped || S.day >= 30) return clearInterval(timer); pullKey(); }, DAY_MS); }
 function stopSharing(){ if (S.stopped) return; S.stopped = true; clearInterval(timer);
-  api('/api/revoke', {player:PLAYER}).then(r => { S.revokeTx = r.body.tx || null; S.keysDestroyed = r.body.keysDestroyed;
+  (onChain() ? chainRevoke() : api('/api/revoke', {player:PLAYER})).then(r => { S.revokeTx = r.body.tx || null; S.keysDestroyed = r.body.keysDestroyed;
     const d = $('destroyedN'); if (d && typeof S.keysDestroyed === 'number') d.textContent = S.keysDestroyed;
-    const rf = $('revokeRef'); if (rf && S.revokeTx) rf.textContent = shortRef(S.revokeTx); }).catch(() => {}); stage('stopped'); addLog('You stopped sharing with Trinity Sleep Lab.', 'stop'); $('toasts').innerHTML = '';
+    const rf = $('revokeRef'); if (rf && S.revokeTx) rf.textContent = shortRef(S.revokeTx); setTimeout(askAfterStop, onChain() ? 0 : 2200); })
+    .catch(e => { if (!onChain()) return; // the wallet refused: nothing was revoked, so the loan carries on
+      S.stopped = false; S.log = S.log.filter(l => l.kind !== 'stop'); closeSheet(); walletToast(e); startStream(); go('wallet', 'loan'); }); stage('stopped'); addLog('You stopped sharing with Trinity Sleep Lab.', 'stop'); $('toasts').innerHTML = '';
   notify('stop', 'var(--danger)', 'Sharing stopped', 'Trinity Sleep Lab can\'t get any more batches', 'go:wallet:loan');
   sheet(`<h2 class="d2">Sharing stopped</h2><div style="display:flex;flex-direction:column;gap:8px">${[['check','var(--steps)','Stopped','Future batches and payments from Trinity Sleep Lab.'],['trash','var(--sleep)','Destroyed','<span id="destroyedN">' + (30 - S.day) + '</span> unreleased batch keys. Stored copies can\'t be opened.'],['eye','var(--gold)','Can\'t be taken back',(S.day === 1 ? '1 batch already shared. The study was asked to erase it.' : S.day + ' batches already shared. The study was asked to erase them.')]].map((o, i) => `<div class="out rise" style="animation-delay:${i * 90}ms"><span class="badge" style="background:${o[1]}${i === 2 ? ';color:var(--night)' : ''}">${ic(o[0],22)}</span><span><span class="b">${o[2]}</span><br><span class="small muted">${o[3]}</span></span></div>`).join('')}</div><p class="muted small">Your level, cards and streak are untouched. Reference <span id="revokeRef">pending</span></p><button class="btn wide" type="button" data-act="stoppedDone">See the activity log</button>`, {lock:true});
   tabs();
-  setTimeout(() => { if (!S.stopped) return; api('/api/keys/' + S.grantId + '/' + S.day).then(r => { if (r.status !== 403) return;
-  addLog('Trinity Sleep Lab asked for day ' + (S.day + 1) + ' after you stopped. The server answered: ' + (r.body.error || 'Access denied') + '.', 'refused'); notify('lock', 'var(--danger)', 'Request refused', 'Trinity Sleep Lab asked for another batch and got nothing', 'go:wallet:loan'); if ($('logBox')) $('logBox').innerHTML = logHtml(S.view === 'loan' ? 50 : 6); }); }, 2200); }
+}
+// The study asks for the next batch after the stop; the key API refuses it.
+function askAfterStop(){ if (!S.stopped) return; api('/api/keys/' + S.grantId + '/' + S.day).then(r => { if (r.status !== 403) return;
+  addLog('Trinity Sleep Lab asked for day ' + (S.day + 1) + ' after you stopped. The server answered: ' + (r.body.error || 'Access denied') + '.', 'refused'); notify('lock', 'var(--danger)', 'Request refused', 'Trinity Sleep Lab asked for another batch and got nothing', 'go:wallet:loan'); if ($('logBox')) $('logBox').innerHTML = logHtml(S.view === 'loan' ? 50 : 6); }); }
 
 /* ---------- you ---------- */
 const BADGES = [['cards','var(--sleep)','First pack','Open your first weekly pack.',() => S.opened],['flame','#F0633E','5-day streak','Finish at least one quest on 5 days in a row.',() => S.streak >= 5],['moon','var(--sleep-d)','8 h sleeper','Sleep 8 hours or more in one night.',() => true],['steps','var(--steps)','10k day','Walk 10,000 steps in one day.',() => true],['star','var(--gold)','Legendary','Find a Legendary card.',() => S.opened],['shield','var(--sky)','Read a full notice','Open a researcher\'s full notice before deciding.',() => S.readNotice],['route','var(--steps-d)','100k week','Walk 100,000 steps in one week.',() => S.opened],['trophy','var(--heart)','Level 5','Reach level 5, Legend.',() => S.level >= 5]];
@@ -1032,7 +1058,7 @@ const SH = {
     if (av < 1) return sheet(`<h2 class="d2">Cash out</h2><div class="out"><span class="badge" style="background:var(--gold);color:var(--night)">${ic('coin',22)}</span><span class="small"><span class="b">You can cash out from 1.00 USDC.</span><br>Your balance is ${money(av)}.</span></div><button class="btn primary wide" type="button" data-act="closeGo:bounties">See bounties</button>`);
     sheet(`<h2 class="d2">Cash out</h2><div style="text-align:center"><span class="num" style="font-size:44px;line-height:48px">${money(av)}</span><br><span class="muted">USDC, your whole balance</span></div><span class="b small">Send it to</span><button class="opt" type="button" data-act="dest:bank" aria-pressed="${S.dest === 'bank'}"><span class="badge" style="background:var(--steps)">${ic('bank',22)}</span><span><span class="b">Bank account</span><br><span class="small muted">In euro, 1 to 2 working days</span></span><span class="rad">${ic('check',12)}</span></button><button class="opt" type="button" data-act="dest:addr" aria-pressed="${S.dest === 'addr'}"><span class="badge" style="background:var(--sleep)">${ic('wallet',22)}</span><span><span class="b">My own wallet</span><br><span class="small muted">Advanced. Arrives in seconds</span></span><span class="rad">${ic('check',12)}</span></button><p class="small muted">No fee in this prototype. Nothing real is sent.</p><button class="btn primary wide" type="button" data-act="cashGo">Cash out ${money(av)}</button>`); },
   earnings(){ sheet(`<h2 class="d2">Where it came from</h2><div style="display:flex;flex-direction:column;gap:8px"><div class="out"><span class="badge" style="background:var(--sky)">${ic('school',22)}</span><span class="between" style="width:100%"><span><span class="b">Trinity Sleep Lab</span><br><span class="small muted">${S.day} day${S.day === 1 ? '' : 's'} at 0.60</span></span><span class="num">${money(S.day * .6)}</span></span></div><div class="out"><span class="badge" style="background:var(--steps)">${ic('run',22)}</span><span class="between" style="width:100%"><span><span class="b">Active Ireland</span><br><span class="small muted">${S.answered ? 'One answer' : 'Not answered'}</span></span><span class="num">${money(S.answered ? 1 : 0)}</span></span></div><div class="out"><span class="badge" style="background:var(--muted)">${ic('bank',22)}</span><span class="between" style="width:100%"><span><span class="b">Cashed out</span><br><span class="small muted">Sent to you</span></span><span class="num">−${money(S.cashed)}</span></span></div></div><div class="between"><span class="b">Balance now</span><span class="num" style="font-size:22px">${money(S.earned - S.cashed)} USDC</span></div><button class="btn wide" type="button" data-act="close">Close</button>`); },
-  log(i){ const l = S.log[+i]; if (!l) return; sheet(`<h2 class="d2" style="padding-right:44px">${l.kind === 'refused' ? 'Request refused' : l.kind === 'stop' ? 'Sharing stopped' : l.kind === 'cash' ? 'Cash out' : l.amt ? 'Payout' : 'Record'}</h2><p>${l.t}</p><dl class="facts"><div>${ic('clock',22)}<dt>When</dt><dd>${l.at}</dd></div><div>${ic('coin',22)}<dt>Amount</dt><dd>${l.amt ? (l.kind === 'cash' ? '−' : '+') + money(l.amt) + ' USDC' : 'None'}</dd></div></dl><div class="out"><span class="badge" style="background:var(--sleep)">${ic('doc',22)}</span><span class="between" style="width:100%"><span><span class="b">Public record</span><br><span class="small muted">${l.ref}</span></span><button class="btn small" type="button" data-act="copy">${ic('copy',16)}Copy</button></span></div><p class="small muted">The public record holds a random ID, a time and an amount. Never your health data.</p><button class="btn wide" type="button" data-act="closeGo:you:privacy">What is public?</button>`); },
+  log(i){ const l = S.log[+i]; if (!l) return; sheet(`<h2 class="d2" style="padding-right:44px">${l.kind === 'refused' ? 'Request refused' : l.kind === 'stop' ? 'Sharing stopped' : l.kind === 'cash' ? 'Cash out' : l.amt ? 'Payout' : 'Record'}</h2><p>${l.t}</p><dl class="facts"><div>${ic('clock',22)}<dt>When</dt><dd>${l.at}</dd></div><div>${ic('coin',22)}<dt>Amount</dt><dd>${l.amt ? (l.kind === 'cash' ? '−' : '+') + money(l.amt) + ' USDC' : 'None'}</dd></div></dl><div class="out"><span class="badge" style="background:var(--sleep)">${ic('doc',22)}</span><span class="between" style="width:100%"><span><span class="b">Public record</span><br><span class="small muted">${l.ref}</span></span><button class="btn small" type="button" data-act="copy">${ic('copy',16)}Copy</button></span></div>${explorer(l.sig) ? `<a class="btn wide" href="${explorer(l.sig)}" target="_blank" rel="noopener">View on Solana Explorer</a>` : ''}<p class="small muted">The public record holds a random ID, a time and an amount. Never your health data.</p><button class="btn wide" type="button" data-act="closeGo:you:privacy">What is public?</button>`); },
   batch(d){ sheet(`<h2 class="d2">Day ${d} batch</h2><p>One encrypted batch of sleep data for day ${d}, sent to Trinity Sleep Lab.</p><dl class="facts"><div>${ic('moon',22)}<dt>Contains</dt><dd>One night of sleep</dd></div><div>${ic('coin',22)}<dt>Paid</dt><dd>+0.60 USDC</dd></div><div>${ic('lock',22)}<dt>Readable by</dt><dd>This study only</dd></div><div>${ic('box',22)}<dt>Kept until</dt><dd>October 2027</dd></div></dl><div class="out"><span class="badge" style="background:var(--sleep)">${ic('flag',22)}</span><span><span class="b">Trace ID</span><br><span class="small muted" id="traceId">${S.keys[d] ? 'Reading…' : 'Not available'}</span><br><span class="small muted">Stamped on every row the study received, so a copy found later leads back to this loan.</span></span></div><button class="btn wide" type="button" data-act="close">Close</button>`);
     if (S.keys[d]) decryptBatch(S.grantId, d - 1, S.keys[d]).then(rows => { const t = $('traceId'); if (t) t.textContent = rows && rows[0] && rows[0].trace_id || 'Not available'; }, () => { const t = $('traceId'); if (t) t.textContent = 'Not available'; }); },
   receipt(){ sheet(`<h2 class="d2" style="padding-right:44px">What I agreed to</h2><div class="shim" aria-label="Loading your record"></div>`);
@@ -1119,7 +1145,8 @@ const ACT = {
   replayIntro(){ S.replay = true; S.onb = false; S.ob = 1; S.intro = 0; tabs(); onboarding('fade'); },
   logout(){ me('signOut').catch(() => {}); closeSheet(); S.onb = false; S.out = true; S.ob = 2; S.stack = []; S.view = null; tabs(); onboarding('fade'); toast(`${ic('logout',18)}<span>Logged out. Your account is safe.</span>`, 2400); }
 };
-function signInAs(p){ me('signIn', S.out ? {provider:p} : {provider:p, name:S.name}).then(r => { if (r.status !== 200) return failToast('Sign-in failed.');
+function signInAs(p){ if (onChain() && !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(PLAYER)) return connectWallet().then(() => signInAs(p), e => { walletToast(e); onboarding(); });
+  me('signIn', S.out ? {provider:p} : {provider:p, name:S.name}).then(r => { if (r.status !== 200) return failToast('Sign-in failed.');
   if (S.out) fromProfile(r.body.profile); signedIn(); }, () => failToast('The server did not answer.')); }
 function signedIn(){ if (S.out){ S.out = false; S.onb = true; stage('loggedout'); go('today'); toast(`${ic('check',18)}<span>Welcome back, ${S.name}</span>`, 2200); } else { S.ob = 3; onboarding('push'); } }
 phone.addEventListener('click', e => { const el = e.target.closest('[data-act]'); if (!el || el.disabled) return; const p = el.getAttribute('data-act').split(':'); const fn = ACT[p[0]]; actEl = el; if (fn) fn.apply(null, p.slice(1)); });
@@ -1133,8 +1160,9 @@ function reset(keepServer){ if (!keepServer) api('/api/demo/reset', {}).catch(()
   Array.prototype.forEach.call(document.querySelectorAll('#stages li'), li => { li.classList.remove('on'); li.firstChild.innerHTML = ''; }); tabs(); render(); }
 $('brandIc').innerHTML = ic('cards', 20);
 $('restart').addEventListener('click', () => reset());
-function boot(){ reset(true); const m = api('/api/me?player=' + encodeURIComponent(PLAYER)), rec = records();
-  Promise.all([m, rec, loadStats()]).then(([m, rec]) => { const p = m.body && m.body.profile; if (!p || !p.ageVerified) return;
+function boot(){ reset(true); api('/api/chain').then(r => { if (r.status === 200) CHAIN = r.body; if (onChain()) return connectWallet(true).catch(() => {}); })
+  .then(() => onChain() && PLAYER === 'demo-player' ? Promise.all([{body:{}}, null, loadStats()]) : Promise.all([api('/api/me?player=' + encodeURIComponent(PLAYER)), records(), loadStats()]))
+  .then(([m, rec]) => { const p = m.body && m.body.profile; if (!p || !p.ageVerified) return;
     fromProfile(p); if (rec) resumeLoans(rec);
     if (p.signedIn){ S.onb = true; go('today'); } else { S.out = true; S.ob = 2; tabs(); render(); } }).catch(() => {}); }
 boot();
